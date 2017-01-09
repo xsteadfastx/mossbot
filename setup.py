@@ -6,8 +6,8 @@ setup(
     py_modules=['mossbot'],
     include_package_data=True,
     install_requires=[
-        'Click>=6.0.0',
-        'matrix_client'
+        'matrix_client',
+        'pyyaml>=3.0.0'
     ],
     dependency_links=[
         'git+https://github.com/matrix-org/matrix-python-sdk.git#egg=matrix_client'

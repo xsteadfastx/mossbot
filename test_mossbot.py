@@ -22,3 +22,11 @@ def test_serve(input, expected):
         return 'hi {}'.format(name)
 
     assert moss.serve(input) == expected
+
+
+@pytest.mark.parametrize('input,expected', [
+    ('ping foo bar', ('text', 'Good morning, thats a nice TNETENNBA')),
+    ('foo bar ping', None),
+])
+def test_ping(input, expected):
+    assert mossbot.moss.serve(input) == expected
