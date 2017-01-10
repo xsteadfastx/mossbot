@@ -4,6 +4,7 @@ import requests
 import sys
 
 from bs4 import BeautifulSoup
+from collections import OrderedDict
 from matrix_client.api import MatrixRequestError
 from matrix_client.client import MatrixClient
 from requests.exceptions import MissingSchema
@@ -17,7 +18,7 @@ logging.basicConfig(level=logging.DEBUG)
 class MossBot(object):
 
     def __init__(self):
-        self.routes = {}
+        self.routes = OrderedDict()
 
     def route(self, route_str):
 
@@ -68,6 +69,7 @@ def ping(route=None, msg=None):
 def url_title(route=None, msg=None):
     """Takes postet urls and parses the title.
     """
+    logging.info('Matched url route.')
     try:
         r = requests.get(route)
         soup = BeautifulSoup(r.text, 'html.parser')
@@ -103,7 +105,7 @@ def on_message(room, event):
                 room.client.api.send_message_event(
                     room.room_id,
                     'm.room.message',
-                    room.client.api.get_html_body(msg[1])
+                    room.client.api.get_html_body(msg[1], msgtype='m.notice')
                 )
 
             elif msg[0] == 'skip':
