@@ -40,4 +40,4 @@ junit*.xml
 # own
 .cache/
 .env
-config.py
+config*.yml

@@ -9,9 +9,6 @@ from matrix_client.api import MatrixRequestError
 from matrix_client.client import MatrixClient
 from requests.exceptions import MissingSchema
 
-import config
-
-
 logging.basicConfig(level=logging.DEBUG)
 
 
@@ -85,11 +82,11 @@ def url_title(route=None, msg=None):
 
 class MatrixHandler(object):
 
-    def __init__(self):
-        self.hostname = config.HOSTNAME
-        self.username = config.USERNAME
-        self.password = config.PASSWORD
-        self.uid = config.UID
+    def __init__(self, config):
+        self.hostname = config['hostname']
+        self.username = config['username']
+        self.password = config['password']
+        self.uid = config['uid']
 
     def on_message(self, room, event):
         """Callback for recieved messages.
@@ -98,7 +95,7 @@ class MatrixHandler(object):
         """
         logging.debug(event)
         if event['content'].get('msgtype') == 'm.text' and event['sender'] != \
-                config.UID:
+                self.uid:
 
             msg = MOSS.serve(event['content']['body'])
             if msg:
@@ -183,4 +180,13 @@ class MatrixHandler(object):
 
 
 if __name__ == '__main__':
-    MatrixHandler().connect()
+    import yaml
+
+    if len(sys.argv) == 2:
+        with open(sys.argv[1], 'r') as f:
+            config = yaml.load(f)
+
+        MatrixHandler(config).connect()
+    else:
+        print('Provide config yaml.')
+        sys.exit()
