@@ -68,7 +68,7 @@ def test_on_message_nothing(config_mock, moss_mock):
 
     room_mock = mock.Mock(spec=Room)
 
-    mossbot.on_message(room_mock, event)
+    mossbot.MatrixHandler().on_message(room_mock, event)
 
     room_mock.assert_not_called()
 
@@ -93,7 +93,7 @@ def test_on_message_text(config_mock, moss_mock):
     moss_mock.serve.return_value = msg
     room_mock = mock.Mock(spec=Room)
 
-    mossbot.on_message(room_mock, event)
+    mossbot.MatrixHandler().on_message(room_mock, event)
 
     room_mock.send_text.assert_called_with('Foo Bar')
 
@@ -118,7 +118,7 @@ def test_on_message_notice(config_mock, moss_mock):
     moss_mock.serve.return_value = msg
     room_mock = mock.Mock(spec=Room)
 
-    mossbot.on_message(room_mock, event)
+    mossbot.MatrixHandler().on_message(room_mock, event)
 
     room_mock.send_notice.assert_called_with('Foo Bar')
 
@@ -146,7 +146,7 @@ def test_on_message_html(config_mock, moss_mock):
     room_mock.room_id = '!foobar:foo.tld'
     room_mock.client.api.get_html_body.return_value = 'HTML'
 
-    mossbot.on_message(room_mock, event)
+    mossbot.MatrixHandler().on_message(room_mock, event)
 
     room_mock.client.api.send_message_event.assert_called_with(
         '!foobar:foo.tld',
@@ -175,6 +175,6 @@ def test_on_message_skip(config_mock, moss_mock):
     moss_mock.serve.return_value = msg
     room_mock = mock.Mock(spec=Room)
 
-    mossbot.on_message(room_mock, event)
+    mossbot.MatrixHandler().on_message(room_mock, event)
 
     room_mock.assert_not_called()

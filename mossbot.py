@@ -69,7 +69,7 @@ def ping(route=None, msg=None):
 def url_title(route=None, msg=None):
     """Takes postet urls and parses the title.
     """
-    logging.info('Matched url route.')
+    logging.info('matched url route')
     try:
         r = requests.get(route)
         soup = BeautifulSoup(r.text, 'html.parser')
@@ -83,80 +83,104 @@ def url_title(route=None, msg=None):
     )
 
 
-def on_message(room, event):
-    """Callback for recieved messages.
+class MatrixHandler(object):
 
-    Gets events and checks if something can be triggered.
-    """
-    logging.debug(event)
-    if event['content'].get('msgtype') == 'm.text' and event['sender'] != \
-            config.UID:
+    def __init__(self):
+        self.hostname = config.HOSTNAME
+        self.username = config.USERNAME
+        self.password = config.PASSWORD
+        self.uid = config.UID
 
-        msg = MOSS.serve(event['content']['body'])
-        if msg:
+    def on_message(self, room, event):
+        """Callback for recieved messages.
 
-            if msg[0] == 'text':
-                room.send_text(msg[1])
+        Gets events and checks if something can be triggered.
+        """
+        logging.debug(event)
+        if event['content'].get('msgtype') == 'm.text' and event['sender'] != \
+                config.UID:
 
-            elif msg[0] == 'notice':
-                room.send_notice(msg[1])
+            msg = MOSS.serve(event['content']['body'])
+            if msg:
 
-            elif msg[0] == 'html':
-                room.client.api.send_message_event(
-                    room.room_id,
-                    'm.room.message',
-                    room.client.api.get_html_body(msg[1], msgtype='m.notice')
-                )
+                if msg[0] == 'text':
+                    room.send_text(msg[1])
 
-            elif msg[0] == 'skip':
-                pass
+                elif msg[0] == 'notice':
+                    room.send_notice(msg[1])
 
-            else:
-                logging.warning(
-                    'could not recognize msg type "{}"'.format(msg[0])
-                )
+                elif msg[0] == 'html':
+                    room.client.api.send_message_event(
+                        room.room_id,
+                        'm.room.message',
+                        room.client.api.get_html_body(
+                            msg[1],
+                            msgtype='m.notice'
+                        )
+                    )
 
+                elif msg[0] == 'skip':
+                    pass
 
-def main(host, username, password, room_id_alias):
-    client = MatrixClient(host)
+                else:
+                    logging.warning(
+                        'could not recognize msg type "{}"'.format(msg[0])
+                    )
 
-    try:
-        client.login_with_password(username, password)
+    def on_invite(self, room_id, state):
+        """Callback for recieving invites.
+        """
+        logging.info('got invite for room {}'.format(room_id))
+        self.client.join_room(room_id)
 
-    except MatrixRequestError as e:
-        print(e)
-        if e.code == 403:
-            print("Bad username or password.")
-            sys.exit(4)
-        else:
-            print("Check your sever details are correct.")
-            sys.exit(2)
-
-    except MissingSchema as e:
-        print("Bad URL format.")
-        print(e)
-        sys.exit(3)
-
-    try:
-        room = client.join_room(room_id_alias)
-        room.add_listener(on_message)
-        client.start_listener_thread()
+    def connect(self):
+        """Connection handler.
+        """
+        self.client = MatrixClient(self.hostname)
 
         try:
-            while True:
-                True
-        except KeyboardInterrupt:
-            print('bye')
+            self.client.login_with_password(self.username, self.password)
 
-    except MatrixRequestError as e:
-        print(e)
-        if e.code == 400:
-            print("Room ID/Alias in the wrong format")
-            sys.exit(11)
-        else:
-            print("Couldn't find room.")
-            sys.exit(12)
+        except MatrixRequestError as e:
+            print(e)
+            if e.code == 403:
+                print("Bad username or password.")
+                sys.exit(4)
+            else:
+                print("Check your sever details are correct.")
+                sys.exit(2)
+
+        except MissingSchema as e:
+            print("Bad URL format.")
+            print(e)
+            sys.exit(3)
+
+        try:
+            # get rooms and join them
+            for room_id in self.client.get_rooms():
+                logging.info('join room {}'.format(room_id))
+
+                room = self.client.join_room(room_id)
+                room.add_listener(self.on_message)
+
+            self.client.add_invite_listener(self.on_invite)
+            self.client.start_listener_thread()
+
+            try:
+                while True:
+                    True
+            except KeyboardInterrupt:
+                print('bye')
+
+        except MatrixRequestError as e:
+            print(e)
+            if e.code == 400:
+                print("Room ID/Alias in the wrong format")
+                sys.exit(11)
+            else:
+                print("Couldn't find room.")
+                sys.exit(12)
 
 
 if __name__ == '__main__':
-    main(config.HOSTNAME, config.USERNAME, config.PASSWORD, config.ROOM)
+    MatrixHandler().connect()
