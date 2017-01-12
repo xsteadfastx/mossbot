@@ -1,5 +1,6 @@
 import logging
 import mimetypes
+import random
 import re
 import sys
 import time
@@ -61,12 +62,18 @@ class MossBot(object):
 MOSS = MossBot()
 
 
-@MOSS.route(r'^(?P<route>ping)\s?(?P<msg>.*)?')
+@MOSS.route(r'^(?P<route>ping)$')
 def ping(route=None, msg=None):
     """Pongs back in a Moss way.
     """
     logger.info('matched "{}" as ping route'.format(route))
-    return ('notice', 'Good morning, thats a nice TNETENNBA')
+    oneliners = (
+        'Good morning, thats a nice TNETENNBA',
+        'Ow. Four! I mean, five! I mean, fire!',
+        'Did you see that ludicrous display last night?',
+    )
+
+    return ('notice', random.choice(oneliners))
 
 
 @MOSS.route(r'(?P<route>^http[s]?://.*(?:jpg|jpeg|png|gif)$)')

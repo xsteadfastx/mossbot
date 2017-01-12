@@ -29,11 +29,24 @@ def test_serve(input, expected):
 
 
 @pytest.mark.parametrize('input,expected', [
-    ('ping foo bar', ('notice', 'Good morning, thats a nice TNETENNBA')),
-    ('foo bar ping', None),
+    (
+        'ping',
+        (
+            'notice',
+            (
+                'Good morning, thats a nice TNETENNBA',
+                'Ow. Four! I mean, five! I mean, fire!',
+                'Did you see that ludicrous display last night?',
+            )
+        ),
+    )
 ])
 def test_ping(input, expected):
-    assert mossbot.MOSS.serve(input) == expected
+    for _ in range(10):
+        response = mossbot.MOSS.serve(input)
+
+        assert response[0] == expected[0]
+        assert response[1] in expected[1]
 
 
 @pytest.mark.parametrize('route,html,expected', [
