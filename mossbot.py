@@ -1,13 +1,21 @@
 import logging
+import mimetypes
 import re
-import requests
 import sys
+import time
+
+from collections import OrderedDict
+from urllib.parse import urlsplit
 
 from bs4 import BeautifulSoup
-from collections import OrderedDict
+
 from matrix_client.api import MatrixRequestError
 from matrix_client.client import MatrixClient
+
+import requests
+
 from requests.exceptions import MissingSchema
+
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -28,7 +36,7 @@ class MossBot(object):
 
     def serve(self, raw_msg):
         for k in self.routes.keys():
-            m = re.search(k, raw_msg)
+            m = re.search(k, raw_msg, re.IGNORECASE)
 
             if m:
                 matches = m.groupdict()
@@ -50,6 +58,13 @@ def ping(route=None, msg=None):
     """Pongs back in a Moss way.
     """
     return ('notice', 'Good morning, thats a nice TNETENNBA')
+
+
+@MOSS.route(r'(?P<route>^http[s]?://.*(?:jpg|jpeg|png|gif)$)')
+def image(route=None, msg=None):
+    """Posts image.
+    """
+    return ('image', route)
 
 
 @MOSS.route(
@@ -116,6 +131,9 @@ class MatrixHandler(object):
                         )
                     )
 
+                elif msg[0] == 'image':
+                    self.write_image(room, msg[1])
+
                 elif msg[0] == 'skip':
                     pass
 
@@ -153,19 +171,27 @@ class MatrixHandler(object):
             sys.exit(3)
 
         try:
-            # get rooms and join them
-            for room_id in self.client.get_rooms():
-                logging.info('join room {}'.format(room_id))
-
-                room = self.client.join_room(room_id)
-                room.add_listener(self.on_message)
-
-            self.client.add_invite_listener(self.on_invite)
-            self.client.start_listener_thread()
 
             try:
+
                 while True:
-                    True
+                    # we have to deal with internet problems and
+                    # reconnects. so this parts is in a while loop that
+                    # gets kicked in every 10 minutes
+
+                    # get rooms and join them
+                    for room_id in self.client.get_rooms():
+                        logging.info('join room {}'.format(room_id))
+
+                        room = self.client.join_room(room_id)
+                        room.add_listener(self.on_message)
+
+                    self.client.add_invite_listener(self.on_invite)
+                    self.client.start_listener_thread()
+
+                    time.sleep(600)
+                    self.client.stop_listener_thread()
+
             except KeyboardInterrupt:
                 print('bye')
 
@@ -177,6 +203,23 @@ class MatrixHandler(object):
             else:
                 print("Couldn't find room.")
                 sys.exit(12)
+
+    def write_image(self, room, image_url):
+        # analyze image url
+        name = urlsplit(image_url).path.split('/')[-1]
+        filetype = mimetypes.guess_type(image_url)[0]
+
+        # get file
+        logging.info('download {}'.format(image_url))
+        response = requests.get(image_url, stream=True)
+        response.raw.decode_content = True
+
+        # upload it to homeserver
+        logging.info('upload file')
+        uploaded = self.client.upload(response.raw, filetype)
+
+        # send image to room
+        room.send_image(uploaded, name)
 
 
 if __name__ == '__main__':

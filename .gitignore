@@ -41,3 +41,4 @@ junit*.xml
 .cache/
 .env
 config*.yml
+.python-version

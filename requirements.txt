@@ -1,5 +1,6 @@
 beautifulsoup4==4.5.3
 flake8==3.2.1
+flake8-import-order==0.11
 -e git+https://github.com/matrix-org/matrix-python-sdk.git@2fe7939b70c515b681028c0cebd4adc08a8d4fc4#egg=matrix_client
 mccabe==0.5.3
 py==1.4.32
