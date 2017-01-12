@@ -9,6 +9,8 @@ from urllib.parse import urlsplit
 
 from bs4 import BeautifulSoup
 
+import click
+
 from matrix_client.api import MatrixRequestError
 from matrix_client.client import MatrixClient
 
@@ -16,8 +18,14 @@ import requests
 
 from requests.exceptions import MissingSchema
 
+import yaml
 
-logging.basicConfig(level=logging.DEBUG)
+
+logging.basicConfig(
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
 
 
 class MossBot(object):
@@ -57,6 +65,7 @@ MOSS = MossBot()
 def ping(route=None, msg=None):
     """Pongs back in a Moss way.
     """
+    logger.info('matched "{}" as ping route'.format(route))
     return ('notice', 'Good morning, thats a nice TNETENNBA')
 
 
@@ -64,6 +73,7 @@ def ping(route=None, msg=None):
 def image(route=None, msg=None):
     """Posts image.
     """
+    logger.info('matched "{}" as image route'.format(route))
     return ('image', route)
 
 
@@ -81,17 +91,22 @@ def image(route=None, msg=None):
 def url_title(route=None, msg=None):
     """Takes postet urls and parses the title.
     """
-    logging.info('matched url route')
+    logger.info('matched "{}" as url route'.format(route))
     try:
+        logger.debug('get "{}"'.format(route))
         r = requests.get(route)
+        logger.debug('parse for title')
         soup = BeautifulSoup(r.text, 'html.parser')
     except Exception as e:
-        logging.warning('url_title could not get html title: {}'.format(e))
+        logger.warning('url_title could not get html title: {}'.format(e))
         return ('skip', None)
+
+    title = soup.title.string
+    logger.info('url title: {}'.format(title))
 
     return (
         'html',
-        '<a href="{}">{}</a>'.format(route, soup.title.string)
+        '<a href="{}">{}</a>'.format(route, title)
     )
 
 
@@ -108,7 +123,7 @@ class MatrixHandler(object):
 
         Gets events and checks if something can be triggered.
         """
-        logging.debug(event)
+        logger.debug(event)
         if event['content'].get('msgtype') == 'm.text' and event['sender'] != \
                 self.uid:
 
@@ -138,14 +153,14 @@ class MatrixHandler(object):
                     pass
 
                 else:
-                    logging.warning(
+                    logger.error(
                         'could not recognize msg type "{}"'.format(msg[0])
                     )
 
     def on_invite(self, room_id, state):
         """Callback for recieving invites.
         """
-        logging.info('got invite for room {}'.format(room_id))
+        logger.info('got invite for room {}'.format(room_id))
         self.client.join_room(room_id)
 
     def connect(self):
@@ -159,10 +174,10 @@ class MatrixHandler(object):
         except MatrixRequestError as e:
             print(e)
             if e.code == 403:
-                print("Bad username or password.")
+                logger.error('Bad username or password.')
                 sys.exit(4)
             else:
-                print("Check your sever details are correct.")
+                logger.error('Check your sever details are correct.')
                 sys.exit(2)
 
         except MissingSchema as e:
@@ -181,15 +196,19 @@ class MatrixHandler(object):
 
                     # get rooms and join them
                     for room_id in self.client.get_rooms():
-                        logging.info('join room {}'.format(room_id))
+                        logger.info('join room {}'.format(room_id))
 
                         room = self.client.join_room(room_id)
                         room.add_listener(self.on_message)
 
                     self.client.add_invite_listener(self.on_invite)
+
+                    logger.debug('start listener thread')
                     self.client.start_listener_thread()
 
                     time.sleep(600)
+
+                    logger.debug('stop listener thread')
                     self.client.stop_listener_thread()
 
             except KeyboardInterrupt:
@@ -198,10 +217,10 @@ class MatrixHandler(object):
         except MatrixRequestError as e:
             print(e)
             if e.code == 400:
-                print("Room ID/Alias in the wrong format")
+                logger.error('Room ID/Alias in the wrong format')
                 sys.exit(11)
             else:
-                print("Couldn't find room.")
+                logger.error('Couldnt find room.')
                 sys.exit(12)
 
     def write_image(self, room, image_url):
@@ -210,26 +229,29 @@ class MatrixHandler(object):
         filetype = mimetypes.guess_type(image_url)[0]
 
         # get file
-        logging.info('download {}'.format(image_url))
+        logger.info('download {}'.format(image_url))
         response = requests.get(image_url, stream=True)
         response.raw.decode_content = True
 
         # upload it to homeserver
-        logging.info('upload file')
+        logger.info('upload file')
         uploaded = self.client.upload(response.raw, filetype)
+        logger.debug('upload: {}'.format(uploaded))
 
         # send image to room
+        logger.info('send image: {}'.format(name))
         room.send_image(uploaded, name)
 
 
+@click.command()
+@click.argument('config', type=click.File('r'))
+@click.option('--debug', is_flag=True)
+def main(config, debug):
+    if debug:
+        logger.setLevel(logging.DEBUG)
+
+    MatrixHandler(yaml.load(config)).connect()
+
+
 if __name__ == '__main__':
-    import yaml
-
-    if len(sys.argv) == 2:
-        with open(sys.argv[1], 'r') as f:
-            config = yaml.load(f)
-
-        MatrixHandler(config).connect()
-    else:
-        print('Provide config yaml.')
-        sys.exit()
+    main()
