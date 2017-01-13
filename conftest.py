@@ -7,5 +7,6 @@ def config():
         'username': 'foo',
         'password': 'bar',
         'hostname': 'bar.tld',
-        'uid': '@foo:bar.tld'
+        'uid': '@foo:bar.tld',
+        'giphy_api_key': 'f00b4r',
     }

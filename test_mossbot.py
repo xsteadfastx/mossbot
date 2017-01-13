@@ -105,6 +105,71 @@ def test_on_message_nothing(moss_mock, config):
     room_mock.assert_not_called()
 
 
+@mock.patch('mossbot.MOSS', autospec=True)
+def test_on_message_image(moss_mock, config):
+    event = {
+        'content': {
+            'msgtype': 'm.text',
+            'body': 'Foo Bar'
+        },
+        'sender': '@bar:foo.tld'
+    }
+
+    msg = ('image', 'http://foo.tld/bar.png')
+
+    moss_mock.serve.return_value = msg
+    room_mock = mock.Mock(spec=Room)
+
+    with mock.patch.object(
+            mossbot.MatrixHandler,
+            'write_media'
+    ) as write_media_mock:
+
+        mossbot.MatrixHandler(config).on_message(room_mock, event)
+
+        write_media_mock.assert_called_with(
+            'image',
+            room_mock,
+            'http://foo.tld/bar.png'
+        )
+
+
+@mock.patch('mossbot.get_giphy_reaction_url')
+@mock.patch('mossbot.MOSS', autospec=True)
+def test_on_message_reaction(moss_mock, giphy_mock, config):
+    event = {
+        'content': {
+            'msgtype': 'm.text',
+            'body': 'Foo Bar'
+        },
+        'sender': '@bar:foo.tld'
+    }
+
+    msg = ('reaction', 'it crowd')
+
+    moss_mock.serve.return_value = msg
+    giphy_mock.return_value = 'https://foo.tld/bar.mp4'
+    room_mock = mock.Mock(spec=Room)
+
+    with mock.patch.object(
+            mossbot.MatrixHandler,
+            'write_media'
+    ) as write_media_mock:
+
+        mossbot.MatrixHandler(config).on_message(room_mock, event)
+
+        write_media_mock.assert_called_with(
+            'video',
+            room_mock,
+            'https://foo.tld/bar.mp4'
+        )
+
+        giphy_mock.assert_called_with(
+            'f00b4r',
+            'it crowd'
+        )
+
+
 @pytest.mark.parametrize('response,expected', [
     (
         {
