@@ -84,6 +84,13 @@ def test_image(route, expected):
     mossbot.MOSS.serve(route) == expected
 
 
+@pytest.mark.parametrize('route,expected', [
+    ('!reaction foo bar', ('reaction', 'foo bar'))
+])
+def test_reaction(route, expected):
+    mossbot.MOSS.serve(route) == expected
+
+
 @mock.patch('mossbot.MOSS', autospec=True)
 def test_on_message_nothing(moss_mock, config):
     event = {
@@ -96,6 +103,41 @@ def test_on_message_nothing(moss_mock, config):
     mossbot.MatrixHandler(config).on_message(room_mock, event)
 
     room_mock.assert_not_called()
+
+
+@pytest.mark.parametrize('response,expected', [
+    (
+        {
+            'data': {
+                'image_mp4_url': 'https://foo.tld/bar.mp4'
+            }
+        },
+        'https://foo.tld/bar.mp4'
+    ),
+    (
+        {},
+        None
+    )
+])
+@mock.patch('mossbot.requests')
+def test_get_giphy_reaction_url(requests_mock, response, expected):
+    requests_mock.get.return_value.json.return_value = response
+
+    assert mossbot.get_giphy_reaction_url(
+        'f00b4r',
+        'it crowd'
+    ) == expected
+
+    requests_mock.get.assert_called_with(
+        'http://api.giphy.com/v1/gifs/random?api_key=f00b4r&tag=it+crowd'
+    )
+
+
+@mock.patch('mossbot.requests')
+def test_get_giphy_reaction_url_exception(requests_mock):
+    requests_mock.get.side_effect = Exception
+
+    assert mossbot.get_giphy_reaction_url('f00b4r', 'it crowd') is None
 
 
 @mock.patch('mossbot.MOSS', autospec=True)
@@ -197,24 +239,52 @@ def test_on_message_skip(moss_mock, config):
     room_mock.assert_not_called()
 
 
+@pytest.mark.parametrize('media_type,url,mime,filename', [
+    (
+        'image',
+        'https://foo.tld/bar.png',
+        'image/png',
+        'bar.png'
+
+    ),
+    (
+        'video',
+        'https://foo.tld/bar.mp4',
+        'video/mp4',
+        'bar.mp4'
+    )
+])
 @mock.patch('mossbot.requests')
-def test_write_image(requests_mock, config):
+def test_write_media(requests_mock, media_type, url, mime, filename, config):
     room_mock = mock.Mock(spec=Room)
 
     matrix_handler = mossbot.MatrixHandler(config)
     matrix_handler.client = mock.Mock()
 
-    matrix_handler.write_image(
+    matrix_handler.write_media(
+        media_type,
         room_mock,
-        'https://foo.tld/bar.png'
+        url
     )
 
     matrix_handler.client.upload.assert_called_with(
         requests_mock.get.return_value.raw,
-        'image/png'
+        mime
     )
 
-    room_mock.send_image.assert_called_with(
-        matrix_handler.client.upload(),
-        'bar.png'
-    )
+    if media_type == 'image':
+
+        room_mock.send_image.assert_called_with(
+            matrix_handler.client.upload(),
+            filename
+        )
+
+    elif media_type == 'video':
+
+        room_mock.send_video.assert_called_with(
+            matrix_handler.client.upload(),
+            filename
+        )
+
+    else:
+        assert False

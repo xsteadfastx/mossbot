@@ -6,7 +6,7 @@ import sys
 import time
 
 from collections import OrderedDict
-from urllib.parse import urlsplit
+from urllib.parse import quote_plus, urlsplit
 
 from bs4 import BeautifulSoup
 
@@ -117,13 +117,46 @@ def url_title(route=None, msg=None):
     )
 
 
+@MOSS.route(r'^(?P<route>!reaction)\s+(?P<msg>.+)')
+def reaction(route=None, msg=None):
+    """Posts reaction gif.
+    """
+    logger.info('matched "{}" as reaction route'.format(route))
+    return ('reaction', msg)
+
+
+def get_giphy_reaction_url(api_key, tag):
+    """Gets a random giphy gif and returns url.
+    """
+    tag = quote_plus(tag)
+    url = 'http://api.giphy.com/v1/gifs/random?api_key={}&tag={}'.format(
+        api_key,
+        tag
+    )
+
+    try:
+        r = requests.get(url)
+
+        if 'data' in r.json().keys():
+            return r.json()['data']['image_mp4_url']
+
+        else:
+            logger.error('could not get reaction video url')
+            return None
+
+    except:
+        logger.error('could not get giphy data')
+        return None
+
+
 class MatrixHandler(object):
 
     def __init__(self, config):
-        self.hostname = config['hostname']
-        self.username = config['username']
-        self.password = config['password']
-        self.uid = config['uid']
+        self.hostname = config.get('hostname')
+        self.username = config.get('username')
+        self.password = config.get('password')
+        self.uid = config.get('uid')
+        self.giphy_api_key = config.get('giphy_api_key')
 
     def on_message(self, room, event):
         """Callback for recieved messages.
@@ -154,7 +187,14 @@ class MatrixHandler(object):
                     )
 
                 elif msg[0] == 'image':
-                    self.write_image(room, msg[1])
+                    self.write_media('image', room, msg[1])
+
+                elif msg[0] == 'reaction':
+                    video_url = get_giphy_reaction_url(
+                        self.giphy_api_key,
+                        msg[1]
+                    )
+                    self.write_media('video', room, video_url)
 
                 elif msg[0] == 'skip':
                     pass
@@ -202,21 +242,29 @@ class MatrixHandler(object):
                     # gets kicked in every 10 minutes
 
                     # get rooms and join them
-                    for room_id in self.client.get_rooms():
-                        logger.info('join room {}'.format(room_id))
 
-                        room = self.client.join_room(room_id)
-                        room.add_listener(self.on_message)
+                    try:
+                        for room_id in self.client.get_rooms():
+                            logger.info('join room {}'.format(room_id))
 
-                    self.client.add_invite_listener(self.on_invite)
+                            room = self.client.join_room(room_id)
+                            room.add_listener(self.on_message)
 
-                    logger.debug('start listener thread')
-                    self.client.start_listener_thread()
+                        self.client.add_invite_listener(self.on_invite)
 
-                    time.sleep(600)
+                        logger.debug('start listener thread')
+                        self.client.start_listener_thread()
 
-                    logger.debug('stop listener thread')
-                    self.client.stop_listener_thread()
+                        time.sleep(600)
+
+                        logger.debug('stop listener thread')
+                        self.client.stop_listener_thread()
+
+                    except:
+                        logging.error(
+                            'problem with connection. retry in 60seconds'
+                        )
+                        time.sleep(60)
 
             except KeyboardInterrupt:
                 print('bye')
@@ -230,14 +278,16 @@ class MatrixHandler(object):
                 logger.error('Couldnt find room.')
                 sys.exit(12)
 
-    def write_image(self, room, image_url):
-        # analyze image url
-        name = urlsplit(image_url).path.split('/')[-1]
-        filetype = mimetypes.guess_type(image_url)[0]
+    def write_media(self, media_type, room, url):
+        """Get media, upload it and post to room.
+        """
+        # analyze url
+        name = urlsplit(url).path.split('/')[-1]
+        filetype = mimetypes.guess_type(url)[0]
 
         # get file
-        logger.info('download {}'.format(image_url))
-        response = requests.get(image_url, stream=True)
+        logger.info('download {}'.format(url))
+        response = requests.get(url, stream=True)
         response.raw.decode_content = True
 
         # upload it to homeserver
@@ -246,8 +296,12 @@ class MatrixHandler(object):
         logger.debug('upload: {}'.format(uploaded))
 
         # send image to room
-        logger.info('send image: {}'.format(name))
-        room.send_image(uploaded, name)
+        logger.info('send media: {}'.format(name))
+
+        if media_type == 'image':
+            room.send_image(uploaded, name)
+        elif media_type == 'video':
+            room.send_video(uploaded, name)
 
 
 @click.command()
