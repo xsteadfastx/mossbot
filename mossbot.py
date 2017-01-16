@@ -2,7 +2,6 @@ import logging
 import mimetypes
 import random
 import re
-import sys
 import time
 
 from collections import OrderedDict
@@ -12,12 +11,9 @@ from bs4 import BeautifulSoup
 
 import click
 
-from matrix_client.api import MatrixRequestError
 from matrix_client.client import MatrixClient
 
 import requests
-
-from requests.exceptions import MissingSchema
 
 import yaml
 
@@ -213,70 +209,39 @@ class MatrixHandler(object):
     def connect(self):
         """Connection handler.
         """
-        self.client = MatrixClient(self.hostname)
-
-        try:
-            self.client.login_with_password(self.username, self.password)
-
-        except MatrixRequestError as e:
-            print(e)
-            if e.code == 403:
-                logger.error('Bad username or password.')
-                sys.exit(4)
-            else:
-                logger.error('Check your sever details are correct.')
-                sys.exit(2)
-
-        except MissingSchema as e:
-            print("Bad URL format.")
-            print(e)
-            sys.exit(3)
-
-        try:
+        while True:
 
             try:
 
+                logger.info('create matrix client')
+                self.client = MatrixClient(self.hostname)
+
+                logger.info('login with password')
+                self.client.login_with_password(
+                    self.username,
+                    self.password
+                )
+
+                for room_id in self.client.get_rooms():
+                    logger.info('join room {}'.format(room_id))
+
+                    room = self.client.join_room(room_id)
+                    room.add_listener(self.on_message)
+
+                self.client.add_invite_listener(self.on_invite)
+
+                logger.info('step into sync loop')
+                foo = 0
                 while True:
-                    # we have to deal with internet problems and
-                    # reconnects. so this parts is in a while loop that
-                    # gets kicked in every 10 minutes
+                    print(foo)
+                    self.client._sync()
+                    foo += 1
 
-                    # get rooms and join them
-
-                    try:
-                        for room_id in self.client.get_rooms():
-                            logger.info('join room {}'.format(room_id))
-
-                            room = self.client.join_room(room_id)
-                            room.add_listener(self.on_message)
-
-                        self.client.add_invite_listener(self.on_invite)
-
-                        logger.debug('start listener thread')
-                        self.client.start_listener_thread()
-
-                        time.sleep(600)
-
-                        logger.debug('stop listener thread')
-                        self.client.stop_listener_thread()
-
-                    except:
-                        logging.error(
-                            'problem with connection. retry in 60seconds'
-                        )
-                        time.sleep(60)
-
-            except KeyboardInterrupt:
-                print('bye')
-
-        except MatrixRequestError as e:
-            print(e)
-            if e.code == 400:
-                logger.error('Room ID/Alias in the wrong format')
-                sys.exit(11)
-            else:
-                logger.error('Couldnt find room.')
-                sys.exit(12)
+            except:
+                logging.error(
+                    'problem with connection. retry in 30 seconds'
+                )
+                time.sleep(30)
 
     def write_media(self, media_type, room, url):
         """Get media, upload it and post to room.
