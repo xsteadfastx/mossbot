@@ -13,6 +13,8 @@ import click
 
 from matrix_client.client import MatrixClient
 
+import pendulum
+
 import requests
 
 import yaml
@@ -58,7 +60,7 @@ class MossBot(object):
 MOSS = MossBot()
 
 
-@MOSS.route(r'^(?P<route>ping)$')
+@MOSS.route(r'^(?P<route>!ping)$')
 def ping(route=None, msg=None):
     """Pongs back in a Moss way.
     """
@@ -231,11 +233,12 @@ class MatrixHandler(object):
                 self.client.add_invite_listener(self.on_invite)
 
                 logger.info('step into sync loop')
-                foo = 0
+                start_time = pendulum.now()
                 while True:
-                    print(foo)
                     self.client._sync()
-                    foo += 1
+                    if pendulum.now() > start_time.add(minutes=5):
+                        logger.info('planed matrix client restart')
+                        break
 
             except:
                 logging.error(

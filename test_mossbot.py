@@ -30,7 +30,7 @@ def test_serve(input, expected):
 
 @pytest.mark.parametrize('input,expected', [
     (
-        'ping',
+        '!ping',
         (
             'notice',
             (
