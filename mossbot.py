@@ -2,9 +2,11 @@ import logging
 import mimetypes
 import random
 import re
+import sys
 import time
 
 from collections import OrderedDict
+from multiprocessing import Process
 from urllib.parse import quote_plus, urlsplit
 
 from bs4 import BeautifulSoup
@@ -28,6 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 class MossBot(object):
+    """Bot routing logic."""
 
     def __init__(self):
         self.routes = OrderedDict()
@@ -62,9 +65,8 @@ MOSS = MossBot()
 
 @MOSS.route(r'^(?P<route>!ping)$')
 def ping(route=None, msg=None):
-    """Pongs back in a Moss way.
-    """
-    logger.info('matched "{}" as ping route'.format(route))
+    """Pongs back in a Moss way."""
+    logger.info(f'matched "{route}" as ping route')
     oneliners = (
         'Good morning, thats a nice TNETENNBA',
         'Ow. Four! I mean, five! I mean, fire!',
@@ -76,9 +78,8 @@ def ping(route=None, msg=None):
 
 @MOSS.route(r'(?P<route>^http[s]?://.*(?:jpg|jpeg|png|gif)$)')
 def image(route=None, msg=None):
-    """Posts image.
-    """
-    logger.info('matched "{}" as image route'.format(route))
+    """Posts image."""
+    logger.info(f'matched "{route}" as image route')
     return ('image', route)
 
 
@@ -94,16 +95,18 @@ def image(route=None, msg=None):
     )
 )
 def url_title(route=None, msg=None):
-    """Takes postet urls and parses the title.
-    """
-    logger.info('matched "{}" as url route'.format(route))
+    """Takes postet urls and parses the title."""
+    logger.info(f'matched "{route}" as url route')
     try:
+
         logger.debug('get "{}"'.format(route))
         r = requests.get(route)
         logger.debug('parse for title')
         soup = BeautifulSoup(r.text, 'html.parser')
-    except Exception as e:
-        logger.warning('url_title could not get html title: {}'.format(e))
+
+    except BaseException as e:
+        logger.warning(f'url_title could not get html title: {str(e)}')
+
         return ('skip', None)
 
     title = soup.title.string
@@ -111,26 +114,21 @@ def url_title(route=None, msg=None):
 
     return (
         'html',
-        '<a href="{}">{}</a>'.format(route, title)
+        f'<a href="{route}">{title}</a>'
     )
 
 
 @MOSS.route(r'^(?P<route>!reaction)\s+(?P<msg>.+)')
 def reaction(route=None, msg=None):
-    """Posts reaction gif.
-    """
-    logger.info('matched "{}" as reaction route'.format(route))
+    """Posts reaction gif."""
+    logger.info(f'matched "{route}" as reaction route')
     return ('reaction', msg)
 
 
 def get_giphy_reaction_url(api_key, tag):
-    """Gets a random giphy gif and returns url.
-    """
+    """Gets a random giphy gif and returns url."""
     tag = quote_plus(tag)
-    url = 'http://api.giphy.com/v1/gifs/random?api_key={}&tag={}'.format(
-        api_key,
-        tag
-    )
+    url = f'http://api.giphy.com/v1/gifs/random?api_key={api_key}&tag={tag}'
 
     try:
         r = requests.get(url)
@@ -142,12 +140,13 @@ def get_giphy_reaction_url(api_key, tag):
             logger.error('could not get reaction video url')
             return None
 
-    except:
-        logger.error('could not get giphy data')
+    except BaseException as e:
+        logger.error(f'could not get giphy data: {str(e)}')
         return None
 
 
 class MatrixHandler(object):
+    """Handling matrix connection and bot integration."""
 
     def __init__(self, config):
         self.hostname = config.get('hostname')
@@ -155,6 +154,9 @@ class MatrixHandler(object):
         self.password = config.get('password')
         self.uid = config.get('uid')
         self.giphy_api_key = config.get('giphy_api_key')
+
+        self.client = None
+        self.sync_process = None
 
     def on_message(self, room, event):
         """Callback for recieved messages.
@@ -203,14 +205,32 @@ class MatrixHandler(object):
                     )
 
     def on_invite(self, room_id, state):
-        """Callback for recieving invites.
-        """
+        """Callback for recieving invites."""
         logger.info('got invite for room {}'.format(room_id))
         self.client.join_room(room_id)
 
+    def listen_forever(self, timeout_ms=30000):
+        """Loop to run _sync in a process."""
+        while True:
+
+            try:
+                self.client._sync(timeout_ms)
+
+            except BaseException as e:
+                logger.error(f'problem with sync: {str(e)}')
+                time.sleep(10)
+
+    def start_listener_process(self, timeout_ms=30000):
+        """Create sync process."""
+        self.sync_process = Process(
+            target=self.listen_forever,
+            args=(timeout_ms, )
+        )
+        self.sync_process.daemon = True
+        self.sync_process.start()
+
     def connect(self):
-        """Connection handler.
-        """
+        """Connection handler."""
         while True:
 
             try:
@@ -231,20 +251,26 @@ class MatrixHandler(object):
                     room.add_listener(self.on_message)
 
                 self.client.add_invite_listener(self.on_invite)
+                self.start_listener_process()
 
-                logger.info('step into sync loop')
                 start_time = pendulum.now()
                 while True:
-                    self.client._sync()
-                    if pendulum.now() > start_time.add(minutes=5):
-                        logger.info('planed matrix client restart')
+
+                    if pendulum.now() >= start_time.add(minutes=10):
+
+                        logging.info('planed reconnect')
+                        self.sync_process.terminate()
+
                         break
 
-            except:
-                logging.error(
-                    'problem with connection. retry in 30 seconds'
-                )
-                time.sleep(30)
+            except KeyboardInterrupt:
+                logger.info('GoodBye')
+                self.sync_process.terminate()
+                sys.exit()
+
+            except BaseException as e:
+                logger.error(f'problem while try to connect: {str(e)}')
+                time.sleep(10)
 
     def write_media(self, media_type, room, url):
         """Get media, upload it and post to room.
