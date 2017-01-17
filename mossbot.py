@@ -55,6 +55,14 @@ class MossBot(object):
 
                 func = self.routes.get(k)
 
+                logger.info(
+                    (
+                        f'matched route "{route}" '
+                        f'with msg "{msg}" from "{raw_msg}" '
+                        f'and triggered "{func.__name__}"'
+                    )
+                )
+
                 return func(route=route, msg=msg)
 
         return None
@@ -66,7 +74,6 @@ MOSS = MossBot()
 @MOSS.route(r'^(?P<route>!ping)$')
 def ping(route=None, msg=None):
     """Pongs back in a Moss way."""
-    logger.info(f'matched "{route}" as ping route')
     oneliners = (
         'Good morning, thats a nice TNETENNBA',
         'Ow. Four! I mean, five! I mean, fire!',
@@ -79,7 +86,6 @@ def ping(route=None, msg=None):
 @MOSS.route(r'(?P<route>^http[s]?://.*(?:jpg|jpeg|png|gif)$)')
 def image(route=None, msg=None):
     """Posts image."""
-    logger.info(f'matched "{route}" as image route')
     return ('image', route)
 
 
@@ -96,7 +102,6 @@ def image(route=None, msg=None):
 )
 def url_title(route=None, msg=None):
     """Takes postet urls and parses the title."""
-    logger.info(f'matched "{route}" as url route')
     try:
 
         logger.debug('get "{}"'.format(route))
@@ -121,7 +126,6 @@ def url_title(route=None, msg=None):
 @MOSS.route(r'^(?P<route>!reaction)\s+(?P<msg>.+)')
 def reaction(route=None, msg=None):
     """Posts reaction gif."""
-    logger.info(f'matched "{route}" as reaction route')
     return ('reaction', msg)
 
 
