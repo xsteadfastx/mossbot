@@ -220,6 +220,8 @@ class MatrixHandler(object):
                 logger.error(f'problem with sync: {str(e)}')
                 time.sleep(10)
 
+            time.sleep(0.1)
+
     def start_listener_process(self, timeout_ms=30000):
         """Create sync process."""
         self.sync_process = Process(
@@ -262,6 +264,8 @@ class MatrixHandler(object):
                         self.sync_process.terminate()
 
                         break
+
+                    time.sleep(0.1)
 
             except KeyboardInterrupt:
                 logger.info('GoodBye')
