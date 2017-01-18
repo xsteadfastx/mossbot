@@ -5,7 +5,7 @@ import re
 import sys
 import time
 
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 from multiprocessing import Process
 from urllib.parse import quote_plus, urlsplit
 
@@ -29,13 +29,24 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+# tuple to store route return data
+msg_return = namedtuple('msg_return', ['type', 'data'])
+
+
 class MossBot(object):
     """Bot routing logic."""
 
     def __init__(self):
+        # stores all routes and its functions
         self.routes = OrderedDict()
 
     def route(self, route_str):
+        """Decorator to save routes to a dictionary.
+
+        :param route_str: A regex string to be used to identify the function
+        :type route_str: str
+        :returns: decorated function
+        """
 
         def decorator(f):
             self.routes[route_str] = f
@@ -44,7 +55,15 @@ class MossBot(object):
 
         return decorator
 
-    def serve(self, raw_msg):
+    def serve(self, event):
+        """Returns the right function for matching route.
+
+        :param event: Event json object
+        :type event: dict
+        :returns: Matched function from route
+        :rtype: function or None
+        """
+        raw_msg = event['content']['body']
         for k in self.routes.keys():
             m = re.search(k, raw_msg, re.IGNORECASE)
 
@@ -80,13 +99,13 @@ def ping(route=None, msg=None):
         'Did you see that ludicrous display last night?',
     )
 
-    return ('notice', random.choice(oneliners))
+    return msg_return('notice', random.choice(oneliners))
 
 
 @MOSS.route(r'(?P<route>^http[s]?://.*(?:jpg|jpeg|png|gif)$)')
 def image(route=None, msg=None):
     """Posts image."""
-    return ('image', route)
+    return msg_return('image', route)
 
 
 @MOSS.route(
@@ -112,12 +131,12 @@ def url_title(route=None, msg=None):
     except BaseException as e:
         logger.warning(f'url_title could not get html title: {str(e)}')
 
-        return ('skip', None)
+        return msg_return('skip', None)
 
     title = soup.title.string
     logger.info('url title: {}'.format(title))
 
-    return (
+    return msg_return(
         'html',
         f'<a href="{route}">{title}</a>'
     )
@@ -126,7 +145,7 @@ def url_title(route=None, msg=None):
 @MOSS.route(r'^(?P<route>!reaction)\s+(?P<msg>.+)')
 def reaction(route=None, msg=None):
     """Posts reaction gif."""
-    return ('reaction', msg)
+    return msg_return('reaction', msg)
 
 
 def get_giphy_reaction_url(api_key, tag):
@@ -171,36 +190,36 @@ class MatrixHandler(object):
         if event['content'].get('msgtype') == 'm.text' and event['sender'] != \
                 self.uid:
 
-            msg = MOSS.serve(event['content']['body'])
+            msg = MOSS.serve(event)
             if msg:
 
-                if msg[0] == 'text':
-                    room.send_text(msg[1])
+                if msg.type == 'text':
+                    room.send_text(msg.data)
 
-                elif msg[0] == 'notice':
-                    room.send_notice(msg[1])
+                elif msg.type == 'notice':
+                    room.send_notice(msg.data)
 
-                elif msg[0] == 'html':
+                elif msg.type == 'html':
                     room.client.api.send_message_event(
                         room.room_id,
                         'm.room.message',
                         room.client.api.get_html_body(
-                            msg[1],
+                            msg.data,
                             msgtype='m.notice'
                         )
                     )
 
-                elif msg[0] == 'image':
-                    self.write_media('image', room, msg[1])
+                elif msg.type == 'image':
+                    self.write_media('image', room, msg.data)
 
-                elif msg[0] == 'reaction':
+                elif msg.type == 'reaction':
                     video_url = get_giphy_reaction_url(
                         self.giphy_api_key,
-                        msg[1]
+                        msg.data
                     )
                     self.write_media('video', room, video_url)
 
-                elif msg[0] == 'skip':
+                elif msg.type == 'skip':
                     pass
 
                 else:
