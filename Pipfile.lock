@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "4a13f1f4625e88ca6cc0639a8d71ab04a2789ed539d4c0d4645501706997c750"
+            "sha256": "1b10e2d689cbfb3a9082c8dcfc9563e715f1d6c99303ba2b309999f1122e5824"
         },
         "host-environment-markers": {
             "implementation_name": "cpython",
@@ -217,6 +217,13 @@
                 "sha256:c20044779ff848f67f89c56a0e4624c04298cd476e25253ac0c36f910a1a11d8"
             ],
             "version": "==3.4.1"
+        },
+        "flake8-import-order": {
+            "hashes": [
+                "sha256:bce3129eedcd77068b98399578d1a346ef88e2940c6960e5f9981a37c79f9a42",
+                "sha256:9107afe312ed9084a52505de0b90a85a3403f9f82c4c69db97df70666851b85a"
+            ],
+            "version": "==0.13"
         },
         "isort": {
             "hashes": [
