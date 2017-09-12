@@ -42,3 +42,5 @@ junit*.xml
 .env
 config*.yml
 .python-version
+.mypy_cache
+.vscode
