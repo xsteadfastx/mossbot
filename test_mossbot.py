@@ -1,3 +1,5 @@
+# pylint: disable=redefined-builtin,missing-docstring
+
 from unittest import mock
 
 from matrix_client.room import Room
@@ -13,11 +15,13 @@ import pytest
     ('foo', None),
 ])
 def test_serve(input, expected):
+    """test serve function"""
 
     moss = mossbot.MossBot()
 
     @moss.route(r'(?P<route>hello)\s?(?P<msg>.*)')
-    def servetest(route=None, msg=None):
+    def servetest(route=None, msg=None):  # pylint: disable=unused-variable
+        """servetest function"""
         if msg:
             name = msg
         else:
@@ -75,20 +79,20 @@ def test_url_exception(requests_mock):
     (
         'https://mediarg/thumb/d/d4/Pav_23.jpg/80ieu_Louvre_3.jpg',
         (
-            'html',
+            'image',
             'https://mediarg/thumb/d/d4/Pav_23.jpg/80ieu_Louvre_3.jpg'
         )
     )
 ])
 def test_image(route, expected):
-    mossbot.MOSS.serve({'content': {'body': route}}) == expected
+    assert mossbot.MOSS.serve({'content': {'body': route}}) == expected
 
 
 @pytest.mark.parametrize('route,expected', [
     ('!reaction foo bar', ('reaction', 'foo bar'))
 ])
 def test_reaction(route, expected):
-    mossbot.MOSS.serve({'content': {'body': route}}) == expected
+    assert mossbot.MOSS.serve({'content': {'body': route}}) == expected
 
 
 @mock.patch('mossbot.MOSS', autospec=True)
@@ -115,14 +119,14 @@ def test_on_message_image(moss_mock, config):
         'sender': '@bar:foo.tld'
     }
 
-    msg = mossbot.msg_return('image', 'http://foo.tld/bar.png')
+    msg = mossbot.MSG_RETURN('image', 'http://foo.tld/bar.png')
 
     moss_mock.serve.return_value = msg
     room_mock = mock.Mock(spec=Room)
 
     with mock.patch.object(
-            mossbot.MatrixHandler,
-            'write_media'
+        mossbot.MatrixHandler,
+        'write_media'
     ) as write_media_mock:
 
         mossbot.MatrixHandler(config).on_message(room_mock, event)
@@ -145,15 +149,15 @@ def test_on_message_reaction(moss_mock, giphy_mock, config):
         'sender': '@bar:foo.tld'
     }
 
-    msg = mossbot.msg_return('reaction', 'it crowd')
+    msg = mossbot.MSG_RETURN('reaction', 'it crowd')
 
     moss_mock.serve.return_value = msg
     giphy_mock.return_value = 'https://foo.tld/bar.mp4'
     room_mock = mock.Mock(spec=Room)
 
     with mock.patch.object(
-            mossbot.MatrixHandler,
-            'write_media'
+        mossbot.MatrixHandler,
+        'write_media'
     ) as write_media_mock:
 
         mossbot.MatrixHandler(config).on_message(room_mock, event)
@@ -215,7 +219,7 @@ def test_on_message_text(moss_mock, config):
         'sender': {'@bar:foo.tld'},
     }
 
-    msg = mossbot.msg_return(
+    msg = mossbot.MSG_RETURN(
         'text',
         'Foo Bar'
     )
@@ -238,7 +242,7 @@ def test_on_message_notice(moss_mock, config):
         'sender': {'@bar:foo.tld'},
     }
 
-    msg = mossbot.msg_return(
+    msg = mossbot.MSG_RETURN(
         'notice',
         'Foo Bar'
     )
@@ -261,7 +265,7 @@ def test_on_message_html(moss_mock, config):
         'sender': {'@bar:foo.tld'},
     }
 
-    msg = mossbot.msg_return(
+    msg = mossbot.MSG_RETURN(
         'html',
         'Foo Bar'
     )
@@ -291,7 +295,7 @@ def test_on_message_skip(moss_mock, config):
         'sender': {'@bar:foo.tld'},
     }
 
-    msg = mossbot.msg_return(
+    msg = mossbot.MSG_RETURN(
         'skip',
         None
     )

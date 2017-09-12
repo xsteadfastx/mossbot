@@ -17,6 +17,7 @@ beautifulsoup4 = "*"
 pendulum = "*"
 pyyaml = "*"
 requests = "*"
+logzero = "*"
 
 [packages.matrix-client]
 git = "https://github.com/matrix-org/matrix-python-sdk.git"
