@@ -9,7 +9,7 @@ RUN set -ex \
         git \
         su-exec \
         tini \
- && pip install pipenv \
+ && pip install pipenv==7.2.7 \
  && addgroup -S mossbot \
  && adduser -h /opt/mossbot -H -S -G mossbot -s /bin/sh mossbot \
  && chown -R mossbot:mossbot /opt/mossbot \
@@ -17,4 +17,3 @@ RUN set -ex \
 
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["su-exec", "mossbot", "pipenv", "run", "python", "mossbot.py", "config.yml"]
-

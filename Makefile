@@ -1,4 +1,4 @@
-.PHONY: init clean build mypy pytest tox
+.PHONY: init clean build run mypy pytest tox
 
 init:
 	pipenv --three
@@ -12,6 +12,9 @@ clean:
 
 build: clean
 	docker build -t mossbot .
+
+run:
+	docker run --rm -ti -v $(PWD)/config.yml:/opt/mossbot/config.yml mossbot
 
 mypy:
 	pipenv run mypy --ignore-missing-imports --follow-imports=skip --strict-optional mossbot.py

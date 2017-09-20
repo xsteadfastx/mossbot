@@ -325,7 +325,7 @@ class MatrixHandler(object):
                 sys.exit()
 
             except BaseException as e:
-                logger.error(f'problem while try to connect: {str(e)}')
+                logger.error('problem while try to connect: %s', e)
                 time.sleep(10)
 
     def write_media(self, media_type: str, room: Room, url: str) -> None:

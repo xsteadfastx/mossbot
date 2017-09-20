@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "1271d9603e9b922921ffad68d0a67031049c76a35698f0a60ee830672a130917"
+            "sha256": "53d83511c58773247c6b696b936a91dcc845eec7664b8ae56710421f8b2f44d8"
         },
         "host-environment-markers": {
             "implementation_name": "cpython",
@@ -64,14 +64,16 @@
         },
         "logzero": {
             "hashes": [
-                "sha256:1e16363b5ffe897011198971d4d1aeb3327ce65038270ea0875be202413392eb",
-                "sha256:bd29dddaeecad8ab06bdbc402ec5c1987730c9ff27ba4c3b13b1797b5ccd3f1c"
+                "sha256:172b4e170b96402551d79c86dc689199c43b5f32b3b976cf5e193b2995857316",
+                "sha256:f3433f87a184e1d846099c521437bfe9d463d4b74c3b2da3488b4f52ce821a1d"
             ],
-            "version": "==1.3.0"
+            "version": "==1.3.1"
         },
         "matrix-client": {
-            "git": "https://github.com/matrix-org/matrix-python-sdk.git",
-            "ref": "2fe7939b70c515b681028c0cebd4adc08a8d4fc4"
+            "hashes": [
+                "sha256:38428949978065e56dd09ec35356784b59e982e1644a7fbb06994323fa2d7d96"
+            ],
+            "version": "==0.0.6"
         },
         "pendulum": {
             "hashes": [
@@ -142,10 +144,10 @@
         },
         "six": {
             "hashes": [
-                "sha256:0ff78c403d9bccf5a425a6d31a12aa6b47f1c21ca4dc2573a7e2f32a97335eb1",
-                "sha256:105f8d68616f8248e24bf0e9372ef04d3cc10104f1980f54d57b2ce73a5ad56a"
+                "sha256:832dc0e10feb1aa2c68dcc57dbb658f1c7e65b9b61af69048abc87a2db00a0eb",
+                "sha256:70e8a77beed4562e7f14fe23a786b54f6296e34344c23bc42f07b15018ff98e9"
             ],
-            "version": "==1.10.0"
+            "version": "==1.11.0"
         },
         "tzlocal": {
             "hashes": [
@@ -337,10 +339,10 @@
         },
         "six": {
             "hashes": [
-                "sha256:0ff78c403d9bccf5a425a6d31a12aa6b47f1c21ca4dc2573a7e2f32a97335eb1",
-                "sha256:105f8d68616f8248e24bf0e9372ef04d3cc10104f1980f54d57b2ce73a5ad56a"
+                "sha256:832dc0e10feb1aa2c68dcc57dbb658f1c7e65b9b61af69048abc87a2db00a0eb",
+                "sha256:70e8a77beed4562e7f14fe23a786b54f6296e34344c23bc42f07b15018ff98e9"
             ],
-            "version": "==1.10.0"
+            "version": "==1.11.0"
         },
         "tox": {
             "hashes": [

@@ -3,6 +3,7 @@ url = "https://pypi.python.org/simple"
 verify_ssl = true
 
 [dev-packages]
+
 tox = "*"
 pytest = "*"
 mypy = "*"
@@ -12,13 +13,11 @@ pytest-cov = "*"
 flake8-import-order = "*"
 
 [packages]
+
 click = "*"
 beautifulsoup4 = "*"
 pendulum = "*"
 pyyaml = "*"
 requests = "*"
 logzero = "*"
-
-[packages.matrix-client]
-git = "https://github.com/matrix-org/matrix-python-sdk.git"
-ref = "2fe7939b70c515b681028c0cebd4adc08a8d4fc4"
+matrix-client = "*"
