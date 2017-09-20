@@ -5,6 +5,7 @@ COPY . /opt/mossbot
 WORKDIR /opt/mossbot
 
 RUN set -ex \
+ && apk upgrade -a --no-cache \
  && apk add --no-cache \
         git \
         su-exec \
