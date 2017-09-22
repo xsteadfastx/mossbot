@@ -1,0 +1,13 @@
+pipeline:
+  test:
+    image: xsteadfastx/tox-python
+    commands:
+      - tox -e ${TOXENV}
+
+matrix:
+  TOXENV:
+    - py34
+    - py35
+    - py36
+    - mypy
+    - flake8
