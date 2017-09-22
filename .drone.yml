@@ -1,13 +1,18 @@
+---
+workspace:
+  base: /workspace
+  path: mossbot
+
 pipeline:
   test:
-    image: xsteadfastx/tox-python
+    image: xsteadfastx/tox-python:latest
     commands:
+      - echo $PWD
       - tox -e ${TOXENV}
 
 matrix:
   TOXENV:
-    - py34
-    - py35
     - py36
-    - mypy
     - flake8
+    - pylint
+    - mypy
