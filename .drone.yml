@@ -12,11 +12,12 @@ pipeline:
       - tox -e ${TOXENV}
 
   build:
-    image: plugins/docker
-    repo: xsteadfastx/mossbot
-    secrets:
-      - docker_username
-      - docker_password
+    image: docker
+    commands:
+      - docker build -t mossbot .
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    privileged: yes
 
 matrix:
   TOXENV:

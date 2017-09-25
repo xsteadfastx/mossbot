@@ -1,4 +1,4 @@
-mossbot
+MOSSBOT
 =======
 
 [![Build Status](https://travis-ci.org/xsteadfastx/mossbot.svg?branch=master)](https://travis-ci.org/xsteadfastx/mossbot)
