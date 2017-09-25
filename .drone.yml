@@ -4,11 +4,19 @@ workspace:
   path: mossbot
 
 pipeline:
+
   test:
     image: xsteadfastx/tox-python:latest
     commands:
       - echo $PWD
       - tox -e ${TOXENV}
+
+  build:
+    image: plugins/docker
+    repo: xsteadfastx/mossbot
+    secrets:
+      - docker_username
+      - docker_password
 
 matrix:
   TOXENV:
