@@ -274,7 +274,7 @@ def test_on_message_html(moss_mock, config):
 
     room_mock = mock.Mock()
     room_mock.room_id = '!foobar:foo.tld'
-    room_mock.client.api.get_html_body.return_value = 'HTML'
+    room_mock.client.api.get_html_content.return_value = 'HTML'
 
     mossbot.MatrixHandler(config).on_message(room_mock, event)
 

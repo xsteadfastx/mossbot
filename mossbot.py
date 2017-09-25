@@ -224,9 +224,8 @@ class MatrixHandler(object):
                     room.client.api.send_message_event(
                         room.room_id,
                         'm.room.message',
-                        room.client.api.get_html_body(
-                            msg.data,
-                            msgtype='m.notice'
+                        room.client.api.get_html_content(
+                            msg.data
                         )
                     )
 
