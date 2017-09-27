@@ -278,11 +278,7 @@ def test_on_message_html(moss_mock, config):
 
     mossbot.MatrixHandler(config).on_message(room_mock, event)
 
-    room_mock.client.api.send_message_event.assert_called_with(
-        '!foobar:foo.tld',
-        'm.room.message',
-        'HTML'
-    )
+    room_mock.send_html.assert_called_with('Foo Bar')
 
 
 @mock.patch('mossbot.MOSS', autospec=True)

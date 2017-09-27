@@ -221,13 +221,7 @@ class MatrixHandler(object):
                     room.send_notice(msg.data)
 
                 elif msg.type == 'html':
-                    room.client.api.send_message_event(
-                        room.room_id,
-                        'm.room.message',
-                        room.client.api.get_html_content(
-                            msg.data
-                        )
-                    )
+                    room.send_html(msg.data)
 
                 elif msg.type == 'image':
                     self.write_media('image', room, msg.data)
