@@ -151,7 +151,7 @@ def url_title(route: str, msg: str) -> MSG_RETURN:
         soup = BeautifulSoup(r.text, 'html.parser')
 
     except BaseException as e:
-        logger.warning(f'url_title could not get html title: {str(e)}')
+        logger.warning('url_title could not get html title: %s', e)
 
         return MSG_RETURN('skip', None)
 
@@ -185,7 +185,7 @@ def get_giphy_reaction_url(api_key: str, tag: str) -> Union[str, None]:
         return None
 
     except BaseException as e:
-        logger.error(f'could not get giphy data: {str(e)}')
+        logger.error('could not get giphy data: %s', e)
         return None
 
 
@@ -262,7 +262,7 @@ class MatrixHandler(object):
                 # pylint: disable=protected-access
                 self.client._sync(timeout_ms)
             except BaseException as e:
-                logger.error(f'problem with sync: {str(e)}')
+                logger.error('problem with sync: %s', e)
                 time.sleep(10)
 
             time.sleep(0.1)
