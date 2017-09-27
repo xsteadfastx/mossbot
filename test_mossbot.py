@@ -152,7 +152,7 @@ def test_on_message_reaction(moss_mock, giphy_mock, config):
     msg = mossbot.MSG_RETURN('reaction', 'it crowd')
 
     moss_mock.serve.return_value = msg
-    giphy_mock.return_value = 'https://foo.tld/bar.mp4'
+    giphy_mock.return_value = 'https://foo.tld/bar.gif'
     room_mock = mock.Mock(spec=Room)
 
     with mock.patch.object(
@@ -163,9 +163,9 @@ def test_on_message_reaction(moss_mock, giphy_mock, config):
         mossbot.MatrixHandler(config).on_message(room_mock, event)
 
         write_media_mock.assert_called_with(
-            'video',
+            'image',
             room_mock,
-            'https://foo.tld/bar.mp4'
+            'https://foo.tld/bar.gif'
         )
 
         giphy_mock.assert_called_with(
@@ -177,14 +177,24 @@ def test_on_message_reaction(moss_mock, giphy_mock, config):
 @pytest.mark.parametrize('response,expected', [
     (
         {
-            'data': {
-                'image_mp4_url': 'https://foo.tld/bar.mp4'
-            }
+            'data': [
+                {
+                    'images': {
+                        'downsized': 'https://foo.tld/bar.gif'
+                    }
+                }
+            ]
         },
-        'https://foo.tld/bar.mp4'
+        'https://foo.tld/bar.gif'
     ),
     (
         {},
+        None
+    ),
+    (
+        {
+            'data': []
+        },
         None
     )
 ])
@@ -198,7 +208,7 @@ def test_get_giphy_reaction_url(requests_mock, response, expected):
     ) == expected
 
     requests_mock.get.assert_called_with(
-        'http://api.giphy.com/v1/gifs/random?api_key=f00b4r&tag=it+crowd'
+        'http://api.giphy.com/v1/gifs/search?api_key=f00b4r&q=it+crowd&limit=5'
     )
 
 

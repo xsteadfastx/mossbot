@@ -170,16 +170,22 @@ def reaction(route: str, msg: str) -> MSG_RETURN:
     return MSG_RETURN('reaction', msg)
 
 
-def get_giphy_reaction_url(api_key: str, tag: str) -> Union[str, None]:
+def get_giphy_reaction_url(api_key: str, term: str) -> Union[str, None]:
     """Gets a random giphy gif and returns url."""
-    tag = quote_plus(tag)
-    url = f'http://api.giphy.com/v1/gifs/random?api_key={api_key}&tag={tag}'
+    term = quote_plus(term)
+
+    url = (
+        f'http://api.giphy.com/v1/gifs/search'
+        f'?api_key={api_key}'
+        f'&q={term}'
+        f'&limit=5'
+    )
 
     try:
         r = requests.get(url)
 
-        if 'data' in r.json().keys():
-            return r.json()['data']['image_mp4_url']
+        if 'data' in r.json().keys() and len(r.json()['data']) >= 1:
+            return r.json()['data'][0]['images']['downsized']
 
         logger.error('could not get reaction video url')
         return None
@@ -228,12 +234,12 @@ class MatrixHandler(object):
 
                 elif msg.type == 'reaction':
                     if msg.data:
-                        video_url = get_giphy_reaction_url(
+                        gif_url = get_giphy_reaction_url(
                             self.giphy_api_key,
                             msg.data
                         )
-                        if video_url:
-                            self.write_media('video', room, video_url)
+                        if gif_url:
+                            self.write_media('image', room, gif_url)
                         else:
                             logger.error('no video_url')
 
