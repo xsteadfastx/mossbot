@@ -1,0 +1,35 @@
+"""docker deploy script"""
+
+import docker
+
+
+client = docker.from_env()
+
+try:
+
+    print('stopping mossbot container...')
+    mossbot_container = client.containers.get('mossbot')
+    mossbot_container.stop()
+    print('stopped')
+
+    print('removing mossbot container...')
+    mossbot_container.remove()
+    print('removed')
+
+except docker.errors.NotFound:
+    print('no running mossbot container')
+
+print('starting mossbot...')
+client.containers.run(
+    'xsteadfastx/mossbot',
+    auto_remove=True,
+    detach=True,
+    volumes={
+        '/opt/mossbot/config.yml': {
+            'bind': '/opt/mossbot/config.yml',
+            'mode': 'ro'
+        }
+    },
+    name='mossbot',
+)
+print('started')

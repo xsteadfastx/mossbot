@@ -5,23 +5,49 @@ workspace:
 
 pipeline:
 
-  test:
+  test-py36:
     image: xsteadfastx/tox-python:latest
     commands:
-      - echo $PWD
-      - tox -e ${TOXENV}
+      - tox -e py36
+
+  test-flake8:
+    image: xsteadfastx/tox-python:latest
+    commands:
+      - tox -e flake8
+
+  test-pylint:
+    image: xsteadfastx/tox-python:latest
+    commands:
+      - tox -e pylint
+
+  test-mypy:
+    image: xsteadfastx/tox-python:latest
+    commands:
+      - tox -e mypy
 
   build:
     image: docker
     commands:
-      - docker build -t mossbot .
+      - rm -rf .cache
+      - rm -rf .tox
+      - rm -rf .mypy_cache
+      - find . | grep -E "(__pycache__|\.pyc$)" | xargs rm -rf
+      - docker build -t xsteadfastx/mossbot .
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     privileged: yes
+    when:
+      branch: master
 
-matrix:
-  TOXENV:
-    - py36
-    - flake8
-    - pylint
-    - mypy
+  deploy:
+    image: docker
+    commands:
+      - apk add --no-cache python3
+      - pip3 install docker
+      - python3 deploy.py
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/mossbot/config.yml:/opt/mossbot/config.yml
+    privileged: yes
+    when:
+      branch: master
