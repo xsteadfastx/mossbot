@@ -10,11 +10,19 @@ try:
     print('stopping mossbot container...')
     mossbot_container = client.containers.get('mossbot')
     mossbot_container.stop()
+    mossbot_container.wait()
     print('stopped')
 
-    print('removing mossbot container...')
-    mossbot_container.remove()
-    print('removed')
+    try:
+
+        print('removing mossbot container...')
+        mossbot_container.remove()
+        print('removed')
+
+    except docker.errors.NotFound:
+
+        print('no mossbot container to remove')
+
 
 except docker.errors.NotFound:
     print('no running mossbot container')
@@ -22,7 +30,7 @@ except docker.errors.NotFound:
 print('starting mossbot...')
 client.containers.run(
     'xsteadfastx/mossbot',
-    auto_remove=True,
+    auto_remove=False,
     detach=True,
     volumes={
         '/opt/mossbot/config.yml': {
