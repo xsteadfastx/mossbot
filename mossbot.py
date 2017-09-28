@@ -20,6 +20,9 @@ from typing import Callable, Dict, NamedTuple, Union
 
 from urllib.parse import quote_plus, urlsplit
 
+
+from PIL import Image
+
 from bs4 import BeautifulSoup
 
 import click
@@ -33,6 +36,8 @@ from matrix_client.room import Room
 import pendulum
 
 import requests
+
+from urllib3.response import HTTPResponse
 
 import yaml
 
@@ -197,6 +202,25 @@ def get_giphy_reaction_url(api_key: str, term: str) -> Union[str, None]:
         return None
 
 
+def get_image_size(image_file: HTTPResponse) -> Union[Dict[str, int], None]:
+    """Getting image height, width and filesize."""
+    try:
+        im = Image.open(image_file)
+
+        # pylint: disable=protected-access
+        media_info = {
+            'w': im.size[0],
+            'h': im.size[1],
+        }
+
+        return media_info
+
+    except BaseException as e:
+        logger.error('could not get sizes: %s', str(e))
+
+        return None
+
+
 class MatrixHandler(object):
     """Handling matrix connection and bot integration."""
 
@@ -243,7 +267,7 @@ class MatrixHandler(object):
                         if gif_url:
                             self.write_media('image', room, gif_url)
                         else:
-                            logger.error('no video_url')
+                            logger.error('no gif_url')
 
                 elif msg.type == 'skip':
                     pass
@@ -332,6 +356,11 @@ class MatrixHandler(object):
     def write_media(self, media_type: str, room: Room, url: str) -> None:
         """Get media, upload it and post to room.
         """
+        # image is the only media type supported right now
+        if media_type != 'image':
+            logger.error('%s as media type is not supported', media_type)
+            return None
+
         # analyze url
         name = urlsplit(url).path.split('/')[-1]
         filetype = mimetypes.guess_type(url)[0]
@@ -341,6 +370,16 @@ class MatrixHandler(object):
         response = requests.get(url, stream=True)
         response.raw.decode_content = True
 
+        # analyze image file and create image info dict
+        media_info = {}  # type: Dict[str, Union[str, int]]
+
+        if filetype:
+            media_info['mimetype'] = filetype
+
+        image_size = get_image_size(response.raw)
+        if image_size:
+            media_info.update(image_size)
+
         # upload it to homeserver
         logger.info('upload file')
         uploaded = self.client.upload(response.raw, filetype)
@@ -348,18 +387,14 @@ class MatrixHandler(object):
 
         # send image to room
         logger.info('send media: %s', name)
-
-        if media_type == 'image':
-            room.send_image(uploaded, name)
-        elif media_type == 'video':
-            room.send_video(uploaded, name)
+        room.send_image(uploaded, name, media_info)
 
 
 @click.command()
 @click.argument('config', type=click.File('r'))
 @click.option('--debug', is_flag=True)
 def main(config: click.File, debug: bool) -> None:
-    """ Main. """
+    """Main."""
     if debug:
         logzero.loglevel(logging.DEBUG)
 

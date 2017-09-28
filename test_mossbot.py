@@ -330,23 +330,51 @@ def test_on_message_skip(moss_mock, config):
     room_mock.assert_not_called()
 
 
-@pytest.mark.parametrize('media_type,url,mime,filename', [
-    (
-        'image',
-        'https://foo.tld/bar.png',
-        'image/png',
-        'bar.png'
-
-    ),
-    (
-        'video',
-        'https://foo.tld/bar.mp4',
-        'video/mp4',
-        'bar.mp4'
-    )
-])
+@pytest.mark.parametrize(
+    'media_type,url,mime,filename,size_return,media_info',
+    [
+        (
+            'image',
+            'https://foo.tld/bar.png',
+            'image/png',
+            'bar.png',
+            {
+                'w': 200,
+                'h': 100
+            },
+            {
+                'w': 200,
+                'h': 100,
+                'mimetype': 'image/png'
+            },
+        ),
+        (
+            'image',
+            'https://foo.tld/bar.png',
+            'image/png',
+            'bar.png',
+            None,
+            {
+                'mimetype': 'image/png'
+            },
+        ),
+    ]
+)
+@mock.patch('mossbot.get_image_size')
 @mock.patch('mossbot.requests')
-def test_write_media(requests_mock, media_type, url, mime, filename, config):
+def test_write_media(
+        requests_mock,
+        get_image_size_mock,
+        media_type,
+        url,
+        mime,
+        filename,
+        size_return,
+        media_info,
+        config
+):
+    get_image_size_mock.return_value = size_return
+
     room_mock = mock.Mock(spec=Room)
 
     matrix_handler = mossbot.MatrixHandler(config)
@@ -358,24 +386,58 @@ def test_write_media(requests_mock, media_type, url, mime, filename, config):
         url
     )
 
+    get_image_size_mock.assert_called_with(requests_mock.get.return_value.raw)
+
     matrix_handler.client.upload.assert_called_with(
         requests_mock.get.return_value.raw,
         mime
     )
 
-    if media_type == 'image':
+    room_mock.send_image.assert_called_with(
+        matrix_handler.client.upload(),
+        filename,
+        media_info
+    )
 
-        room_mock.send_image.assert_called_with(
-            matrix_handler.client.upload(),
-            filename
-        )
 
-    elif media_type == 'video':
+@mock.patch('mossbot.logger')
+def test_write_media_not_image(logger_mock, config):
+    room_mock = mock.Mock(spec=Room)
 
-        room_mock.send_video.assert_called_with(
-            matrix_handler.client.upload(),
-            filename
-        )
+    matrix_handler = mossbot.MatrixHandler(config)
+    matrix_handler.client = mock.Mock()
 
-    else:
-        assert False
+    assert matrix_handler.write_media(
+        'video',
+        room_mock,
+        'https://foo.tld/bar.png'
+    ) is None
+
+    logger_mock.error.assert_called_with(
+        '%s as media type is not supported',
+        'video'
+    )
+
+
+@mock.patch('mossbot.HTTPResponse')
+@mock.patch('mossbot.Image')
+def test_get_image_size(image_mock, httpresponse_mock):
+    image_mock.open.return_value.size = (200, 100)
+
+    assert mossbot.get_image_size(httpresponse_mock) == {
+        'h': 100,
+        'w': 200
+    }
+
+
+@mock.patch('mossbot.HTTPResponse')
+@mock.patch('mossbot.Image')
+@mock.patch('mossbot.logger')
+def test_get_image_size_exception(logger_mock, image_mock, httpresponse_mock):
+    image_mock.open.side_effect = KeyError('problem')
+
+    assert mossbot.get_image_size(httpresponse_mock) is None
+
+    logger_mock.error.assert_called_with(
+        'could not get sizes: %s', "'problem'"
+    )
