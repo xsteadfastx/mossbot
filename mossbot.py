@@ -185,7 +185,9 @@ def get_giphy_reaction_url(api_key: str, term: str) -> Union[str, None]:
         r = requests.get(url)
 
         if 'data' in r.json().keys() and len(r.json()['data']) >= 1:
-            return r.json()['data'][0]['images']['downsized']['url']
+            gif_url = r.json()['data'][0]['images']['downsized']['url']
+
+            return gif_url.split('?')[0]
 
         logger.error('could not get reaction video url')
         return None

@@ -181,6 +181,20 @@ def test_on_message_reaction(moss_mock, giphy_mock, config):
                 {
                     'images': {
                         'downsized': {
+                            'url': 'https://foo.tld/bar.gif?fingerprint=abc'
+                        }
+                    }
+                }
+            ]
+        },
+        'https://foo.tld/bar.gif'
+    ),
+    (
+        {
+            'data': [
+                {
+                    'images': {
+                        'downsized': {
                             'url': 'https://foo.tld/bar.gif'
                         }
                     }
