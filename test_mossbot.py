@@ -180,7 +180,9 @@ def test_on_message_reaction(moss_mock, giphy_mock, config):
             'data': [
                 {
                     'images': {
-                        'downsized': 'https://foo.tld/bar.gif'
+                        'downsized': {
+                            'url': 'https://foo.tld/bar.gif'
+                        }
                     }
                 }
             ]
