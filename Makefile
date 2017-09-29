@@ -8,7 +8,8 @@ clean:
 	rm -rf .cache
 	rm -rf .tox
 	rm -rf .mypy_cache
-	find . | grep -E "(__pycache__|\.pyc$)" | xargs rm -rf
+	find . -type f -name "*.py[co]" -delete
+	find . -type d -name "__pycache__" -delete
 
 build: clean
 	docker build -t xsteadfastx/mossbot .
