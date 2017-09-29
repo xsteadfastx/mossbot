@@ -13,8 +13,10 @@ RUN set -ex \
         musl-dev \
         zlib-dev \
  && apk add --no-cache \
+        libjpeg-turbo \
         su-exec \
         tini \
+        zlib \
  && pip install pipenv \
  && addgroup -S mossbot \
  && adduser -h /opt/mossbot -H -S -G mossbot -s /bin/sh mossbot \
