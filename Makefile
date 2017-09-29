@@ -11,7 +11,7 @@ clean:
 	find . | grep -E "(__pycache__|\.pyc$)" | xargs rm -rf
 
 build: clean
-	docker build -t mossbot .
+	docker build -t xsteadfastx/mossbot .
 
 run:
 	docker run --rm -ti --name mossbot -v $(PWD)/config.yml:/opt/mossbot/config.yml mossbot

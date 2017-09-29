@@ -28,11 +28,8 @@ pipeline:
   build:
     image: docker
     commands:
-      - rm -rf .cache
-      - rm -rf .tox
-      - rm -rf .mypy_cache
-      - find . | grep -E "(__pycache__|\.pyc$)" | xargs rm -rf
-      - docker build -t xsteadfastx/mossbot .
+      - apk add --no-cache make
+      - make build
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     privileged: yes
