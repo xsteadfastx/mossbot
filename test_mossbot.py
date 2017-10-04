@@ -1,5 +1,7 @@
 # pylint: disable=redefined-builtin,missing-docstring
 
+from io import BytesIO
+
 from unittest import mock
 
 from matrix_client.room import Room
@@ -330,86 +332,80 @@ def test_on_message_skip(moss_mock, config):
     room_mock.assert_not_called()
 
 
-@pytest.mark.parametrize(
-    'media_type,url,mime,filename,size_return,media_info',
-    [
-        (
-            'image',
-            'https://foo.tld/bar.png',
-            'image/png',
-            'bar.png',
-            {
-                'w': 200,
-                'h': 100
-            },
-            {
-                'w': 200,
-                'h': 100,
-                'mimetype': 'image/png'
-            },
-        ),
-        (
-            'image',
-            'https://foo.tld/bar.png',
-            'image/png',
-            'bar.png',
-            None,
-            {
-                'mimetype': 'image/png'
-            },
-        ),
-    ]
-)
-@mock.patch('mossbot.get_image_size')
-@mock.patch('mossbot.requests')
+@pytest.mark.parametrize('image_data', [
+    (
+        {
+            'content-type': 'image/gif',
+            'height': 100,
+            'width': 200,
+            'image': 'gif_image'
+        }
+    ),
+    (
+        {
+            'height': 100,
+            'width': 200,
+            'image': 'gif_image'
+        }
+    ),
+])
+@mock.patch('mossbot.get_image')
 def test_write_media(
-        requests_mock,
-        get_image_size_mock,
-        media_type,
-        url,
-        mime,
-        filename,
-        size_return,
-        media_info,
-        config
+        get_image_mock,
+        image_data,
+        config,
+        matrix_handler,
+        room,
 ):
-    get_image_size_mock.return_value = size_return
+    get_image_mock.return_value = image_data
 
-    room_mock = mock.Mock(spec=Room)
+    matrix_handler.client.upload.return_value = 'succ_uploaded'
 
-    matrix_handler = mossbot.MatrixHandler(config)
-    matrix_handler.client = mock.Mock()
-
-    matrix_handler.write_media(
-        media_type,
-        room_mock,
-        url
-    )
-
-    get_image_size_mock.assert_called_with(requests_mock.get.return_value.raw)
+    assert matrix_handler.write_media(
+        'image',
+        room,
+        'http://foo.bar/image.gif'
+    ) is None
 
     matrix_handler.client.upload.assert_called_with(
-        requests_mock.get.return_value.raw,
-        mime
+        'gif_image',
+        'image/gif'
     )
 
-    room_mock.send_image.assert_called_with(
-        matrix_handler.client.upload(),
-        filename,
-        media_info
+    room.send_image.assert_called_with(
+        'succ_uploaded',
+        'image.gif',
+        h=100,
+        mimetype='image/gif',
+        w=200
     )
 
 
 @mock.patch('mossbot.logger')
-def test_write_media_not_image(logger_mock, config):
-    room_mock = mock.Mock(spec=Room)
-
-    matrix_handler = mossbot.MatrixHandler(config)
-    matrix_handler.client = mock.Mock()
+@mock.patch('mossbot.get_image')
+def test_write_media_no_image_data(
+        get_image_mock,
+        logger_mock,
+        config,
+        matrix_handler,
+        room
+):
+    get_image_mock.return_value = None
 
     assert matrix_handler.write_media(
+        'image',
+        room,
+        'http://foo.bar/image.gif'
+    ) is None
+
+    logger_mock.error.assert_called_with('got no image_data')
+
+
+@mock.patch('mossbot.logger')
+def test_write_media_not_image(logger_mock, config, matrix_handler, room):
+    assert matrix_handler.write_media(
         'video',
-        room_mock,
+        room,
         'https://foo.tld/bar.png'
     ) is None
 
@@ -419,25 +415,64 @@ def test_write_media_not_image(logger_mock, config):
     )
 
 
-@mock.patch('mossbot.HTTPResponse')
+@mock.patch('mossbot.BytesIO')
+@mock.patch('mossbot.logger')
 @mock.patch('mossbot.Image')
-def test_get_image_size(image_mock, httpresponse_mock):
-    image_mock.open.return_value.size = (200, 100)
+@mock.patch('mossbot.requests')
+def test_get_image_200(
+        requests_mock,
+        image_mock,
+        logger_mock,
+        bytesio_mock,
+):
+    requests_mock.get.return_value.status_code = 200
+    requests_mock.get.return_value.content = 'foo'
+    requests_mock.get.return_value.headers = {'Content-Type': 'image/gif'}
 
-    assert mossbot.get_image_size(httpresponse_mock) == {
-        'h': 100,
-        'w': 200
+    gif = BytesIO()
+    bytesio_mock.return_value = gif
+
+    image_mock.open.return_value.width = 200
+    image_mock.open.return_value.height = 100
+
+    assert mossbot.get_image('http://foo.bar/test.gif') == {
+        'content-type': 'image/gif',
+        'image': gif,
+        'width': 200,
+        'height': 100,
     }
 
+    logger_mock.info.assert_called_with(
+        'downloading image: %s',
+        'http://foo.bar/test.gif'
+    )
 
-@mock.patch('mossbot.HTTPResponse')
-@mock.patch('mossbot.Image')
+    requests_mock.get.assert_called_with('http://foo.bar/test.gif')
+
+    bytesio_mock.assert_called_with('foo')
+
+
 @mock.patch('mossbot.logger')
-def test_get_image_size_exception(logger_mock, image_mock, httpresponse_mock):
-    image_mock.open.side_effect = KeyError('problem')
+@mock.patch('mossbot.Image')
+@mock.patch('mossbot.requests')
+def test_get_image_wrong_status_code(requests_mock, image_mock, logger_mock):
+    requests_mock.get.return_value.status_code = 404
 
-    assert mossbot.get_image_size(httpresponse_mock) is None
+    assert mossbot.get_image('http://foo.bar/test.gif') is None
 
     logger_mock.error.assert_called_with(
-        'could not get sizes: %s', "'problem'"
+        'could not download and analyze img: %s',
+        "('wrong status code %s', 404)"
+    )
+
+
+@mock.patch('mossbot.logger')
+@mock.patch('mossbot.requests')
+def test_get_image_exception(requests_mock, logger_mock):
+    requests_mock.get.side_effect = KeyError('problem')
+
+    assert mossbot.get_image('http://foo.bar/test.gif') is None
+
+    logger_mock.error.assert_called_with(
+        'could not download and analyze img: %s', "'problem'"
     )

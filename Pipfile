@@ -12,6 +12,7 @@ pylint = "*"
 "pytest-cov" = "*"
 "flake8-import-order" = "*"
 docker = "*"
+"pytest-sugar" = "*"
 
 [packages]
 

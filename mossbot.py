@@ -14,12 +14,13 @@ import time
 
 from collections import OrderedDict
 
+from io import BytesIO
+
 from multiprocessing import Process
 
 from typing import Callable, Dict, NamedTuple, Union
 
 from urllib.parse import quote_plus, urlsplit
-
 
 from PIL import Image
 
@@ -36,8 +37,6 @@ from matrix_client.room import Room
 import pendulum
 
 import requests
-
-from urllib3.response import HTTPResponse
 
 import yaml
 
@@ -202,21 +201,36 @@ def get_giphy_reaction_url(api_key: str, term: str) -> Union[str, None]:
         return None
 
 
-def get_image_size(image_file: HTTPResponse) -> Union[Dict[str, int], None]:
-    """Getting image height, width and filesize."""
+def get_image(
+        url: str
+) -> Union[Dict[str, Union[int, str, BytesIO, None]], None]:
+    """Downloads image and analyzes it."""
     try:
-        im = Image.open(image_file)
+        logger.info('downloading image: %s', url)
+        r = requests.get(url)
 
-        # pylint: disable=protected-access
-        media_info = {
-            'w': im.size[0],
-            'h': im.size[1],
-        }
+        if r.status_code == 200:
 
-        return media_info
+            # loading binary data to mem
+            img = BytesIO(r.content)
+
+            # loading image to PIL
+            pil_img = Image.open(img)
+
+            # seek to 0
+            img.seek(0)
+
+            return {
+                'content-type': r.headers.get('Content-Type'),
+                'image': img,
+                'width': pil_img.width,
+                'height': pil_img.height,
+            }
+
+        raise Exception('wrong status code %s', r.status_code)
 
     except BaseException as e:
-        logger.error('could not get sizes: %s', str(e))
+        logger.error('could not download and analyze img: %s', str(e))
 
         return None
 
@@ -361,33 +375,47 @@ class MatrixHandler(object):
             logger.error('%s as media type is not supported', media_type)
             return None
 
-        # analyze url
-        name = urlsplit(url).path.split('/')[-1]
-        filetype = mimetypes.guess_type(url)[0]
-
-        # get file
+        # getting image and analyze it
         logger.info('download %s', url)
-        response = requests.get(url, stream=True)
-        response.raw.decode_content = True
+        image_data = get_image(url)
+        logger.debug('got image_data: %s', image_data)
+
+        if not image_data:
+            logger.error('got no image_data')
+            return
 
         # analyze image file and create image info dict
-        media_info = {}  # type: Dict[str, Union[str, int]]
+        media_info = {}  # type: Dict[str, Union[str, int, BytesIO, None]]
 
-        if filetype:
-            media_info['mimetype'] = filetype
+        # getting mimetype
+        media_info['mimetype'] = image_data.get('content-type')
+        if not media_info['mimetype']:
+            media_info['mimetype'] = mimetypes.guess_type(url)[0]
 
-        image_size = get_image_size(response.raw)
-        if image_size:
-            media_info.update(image_size)
+        # getting name
+        name = urlsplit(url).path.split('/')[-1]
+
+        # image size
+        media_info['h'] = image_data.get('height')
+        media_info['w'] = image_data.get('width')
+
+        logger.debug('media_info content: %s', media_info)
 
         # upload it to homeserver
         logger.info('upload file')
-        uploaded = self.client.upload(response.raw, filetype)
+        uploaded = self.client.upload(
+            image_data['image'],
+            media_info['mimetype']
+        )
         logger.debug('upload: %s', uploaded)
 
         # send image to room
         logger.info('send media: %s', name)
-        room.send_image(uploaded, name, media_info)
+        room.send_image(
+            uploaded,
+            name,
+            **media_info
+        )
 
 
 @click.command()
@@ -399,7 +427,3 @@ def main(config: click.File, debug: bool) -> None:
         logzero.loglevel(logging.DEBUG)
 
     MatrixHandler(yaml.load(config)).connect()
-
-
-if __name__ == '__main__':
-    main()  # pylint: disable=no-value-for-parameter
