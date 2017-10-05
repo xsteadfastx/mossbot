@@ -427,3 +427,8 @@ def main(config: click.File, debug: bool) -> None:
         logzero.loglevel(logging.DEBUG)
 
     MatrixHandler(yaml.load(config)).connect()
+
+
+if __name__ == '__main__':
+    # pylint: disable=no-value-for-parameter
+    main()

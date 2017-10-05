@@ -1,6 +1,11 @@
 FROM python:alpine
 
-COPY . /opt/mossbot
+RUN set -ex \
+ && mkdir -p /opt/mossbot
+
+COPY mossbot.py /opt/mossbot/mossbot.py
+COPY Pipfile /opt/mossbot/Pipfile
+COPY Pipfile.lock /opt/mossbot/Pipfile.lock
 
 WORKDIR /opt/mossbot
 

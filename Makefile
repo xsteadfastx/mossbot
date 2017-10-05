@@ -15,7 +15,7 @@ build: clean
 	docker build -t xsteadfastx/mossbot .
 
 run:
-	docker run --rm -ti --name mossbot -v $(PWD)/config.yml:/opt/mossbot/config.yml mossbot
+	docker run --rm -ti --name mossbot -v $(PWD)/config.yml:/opt/mossbot/config.yml xsteadfastx/mossbot
 
 mypy:
 	pipenv run mypy --ignore-missing-imports --follow-imports=skip --strict-optional mossbot.py
