@@ -226,7 +226,10 @@ def test_get_giphy_reaction_url(requests_mock, response, expected):
     ) == expected
 
     requests_mock.get.assert_called_with(
-        'http://api.giphy.com/v1/gifs/search?api_key=f00b4r&q=it+crowd&limit=5'
+        (
+            'http://api.giphy.com/v1/gifs/search'
+            '?api_key=f00b4r&q=it+crowd&limit=20'
+        )
     )
 
 

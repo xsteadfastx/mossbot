@@ -182,14 +182,15 @@ def get_giphy_reaction_url(api_key: str, term: str) -> Union[str, None]:
         f'http://api.giphy.com/v1/gifs/search'
         f'?api_key={api_key}'
         f'&q={term}'
-        f'&limit=5'
+        f'&limit=20'
     )
 
     try:
         r = requests.get(url)
 
         if 'data' in r.json().keys() and len(r.json()['data']) >= 1:
-            gif_url = r.json()['data'][0]['images']['downsized']['url']
+            random_gif = random.choice(r.json()['data'])
+            gif_url = random_gif['images']['downsized']['url']
 
             return gif_url.split('?')[0]
 
