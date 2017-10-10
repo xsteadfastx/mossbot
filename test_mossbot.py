@@ -4,8 +4,6 @@ from io import BytesIO
 
 from unittest import mock
 
-from matrix_client.room import Room
-
 import mossbot
 
 import pytest
@@ -97,22 +95,33 @@ def test_reaction(route, expected):
     assert mossbot.MOSS.serve({'content': {'body': route}}) == expected
 
 
+@mock.patch('mossbot.MatrixHandler.store_msg')
 @mock.patch('mossbot.MOSS', autospec=True)
-def test_on_message_nothing(moss_mock, config):
+def test_on_message_nothing(moss_mock, store_msg_mock, matrix_handler, room):
     event = {
         'content': {},
         'sender': {},
     }
 
-    room_mock = mock.Mock(spec=Room)
+    matrix_handler.on_message(room, event)
 
-    mossbot.MatrixHandler(config).on_message(room_mock, event)
+    room.assert_not_called()
 
-    room_mock.assert_not_called()
+    moss_mock.assert_not_called()
+
+    store_msg_mock.assert_called_with(event)
 
 
+@mock.patch('mossbot.MatrixHandler.store_msg')
+@mock.patch('mossbot.MatrixHandler.write_media')
 @mock.patch('mossbot.MOSS', autospec=True)
-def test_on_message_image(moss_mock, config):
+def test_on_message_image(
+        moss_mock,
+        write_media_mock,
+        store_msg_mock,
+        matrix_handler,
+        room
+):
     event = {
         'content': {
             'msgtype': 'm.text',
@@ -124,25 +133,30 @@ def test_on_message_image(moss_mock, config):
     msg = mossbot.MSG_RETURN('image', 'http://foo.tld/bar.png')
 
     moss_mock.serve.return_value = msg
-    room_mock = mock.Mock(spec=Room)
 
-    with mock.patch.object(
-        mossbot.MatrixHandler,
-        'write_media'
-    ) as write_media_mock:
+    matrix_handler.on_message(room, event)
 
-        mossbot.MatrixHandler(config).on_message(room_mock, event)
+    write_media_mock.assert_called_with(
+        'image',
+        room,
+        'http://foo.tld/bar.png'
+    )
 
-        write_media_mock.assert_called_with(
-            'image',
-            room_mock,
-            'http://foo.tld/bar.png'
-        )
+    store_msg_mock.assert_called_with(event)
 
 
+@mock.patch('mossbot.MatrixHandler.store_msg')
+@mock.patch('mossbot.MatrixHandler.write_media')
 @mock.patch('mossbot.get_giphy_reaction_url')
 @mock.patch('mossbot.MOSS', autospec=True)
-def test_on_message_reaction(moss_mock, giphy_mock, config):
+def test_on_message_reaction(
+        moss_mock,
+        giphy_mock,
+        write_media_mock,
+        store_msg_mock,
+        matrix_handler,
+        room
+):
     event = {
         'content': {
             'msgtype': 'm.text',
@@ -155,25 +169,21 @@ def test_on_message_reaction(moss_mock, giphy_mock, config):
 
     moss_mock.serve.return_value = msg
     giphy_mock.return_value = 'https://foo.tld/bar.gif'
-    room_mock = mock.Mock(spec=Room)
 
-    with mock.patch.object(
-        mossbot.MatrixHandler,
-        'write_media'
-    ) as write_media_mock:
+    matrix_handler.on_message(room, event)
 
-        mossbot.MatrixHandler(config).on_message(room_mock, event)
+    write_media_mock.assert_called_with(
+        'image',
+        room,
+        'https://foo.tld/bar.gif'
+    )
 
-        write_media_mock.assert_called_with(
-            'image',
-            room_mock,
-            'https://foo.tld/bar.gif'
-        )
+    giphy_mock.assert_called_with(
+        'f00b4r',
+        'it crowd'
+    )
 
-        giphy_mock.assert_called_with(
-            'f00b4r',
-            'it crowd'
-        )
+    store_msg_mock.assert_called_with(event)
 
 
 @pytest.mark.parametrize('response,expected', [
@@ -240,8 +250,9 @@ def test_get_giphy_reaction_url_exception(requests_mock):
     assert mossbot.get_giphy_reaction_url('f00b4r', 'it crowd') is None
 
 
+@mock.patch('mossbot.MatrixHandler.store_msg')
 @mock.patch('mossbot.MOSS', autospec=True)
-def test_on_message_text(moss_mock, config):
+def test_on_message_text(moss_mock, store_msg_mock, matrix_handler, room):
     event = {
         'content': {
             'msgtype': 'm.text',
@@ -256,15 +267,17 @@ def test_on_message_text(moss_mock, config):
     )
 
     moss_mock.serve.return_value = msg
-    room_mock = mock.Mock(spec=Room)
 
-    mossbot.MatrixHandler(config).on_message(room_mock, event)
+    matrix_handler.on_message(room, event)
 
-    room_mock.send_text.assert_called_with('Foo Bar')
+    room.send_text.assert_called_with('Foo Bar')
+
+    store_msg_mock.assert_called_with(event)
 
 
+@mock.patch('mossbot.MatrixHandler.store_msg')
 @mock.patch('mossbot.MOSS', autospec=True)
-def test_on_message_notice(moss_mock, config):
+def test_on_message_notice(moss_mock, store_msg_mock, matrix_handler, room):
     event = {
         'content': {
             'msgtype': 'm.text',
@@ -279,15 +292,17 @@ def test_on_message_notice(moss_mock, config):
     )
 
     moss_mock.serve.return_value = msg
-    room_mock = mock.Mock(spec=Room)
 
-    mossbot.MatrixHandler(config).on_message(room_mock, event)
+    matrix_handler.on_message(room, event)
 
-    room_mock.send_notice.assert_called_with('Foo Bar')
+    room.send_notice.assert_called_with('Foo Bar')
+
+    store_msg_mock.assert_called_with(event)
 
 
+@mock.patch('mossbot.MatrixHandler.store_msg')
 @mock.patch('mossbot.MOSS', autospec=True)
-def test_on_message_html(moss_mock, config):
+def test_on_message_html(moss_mock, store_msg_mock, matrix_handler):
     event = {
         'content': {
             'msgtype': 'm.text',
@@ -307,13 +322,16 @@ def test_on_message_html(moss_mock, config):
     room_mock.room_id = '!foobar:foo.tld'
     room_mock.client.api.get_html_content.return_value = 'HTML'
 
-    mossbot.MatrixHandler(config).on_message(room_mock, event)
+    matrix_handler.on_message(room_mock, event)
 
     room_mock.send_html.assert_called_with('Foo Bar')
 
+    store_msg_mock.assert_called_with(event)
 
+
+@mock.patch('mossbot.MatrixHandler.store_msg')
 @mock.patch('mossbot.MOSS', autospec=True)
-def test_on_message_skip(moss_mock, config):
+def test_on_message_skip(moss_mock, store_msg_mock, matrix_handler, room):
     event = {
         'content': {
             'msgtype': 'm.text',
@@ -328,11 +346,12 @@ def test_on_message_skip(moss_mock, config):
     )
 
     moss_mock.serve.return_value = msg
-    room_mock = mock.Mock(spec=Room)
 
-    mossbot.MatrixHandler(config).on_message(room_mock, event)
+    matrix_handler.on_message(room, event)
 
-    room_mock.assert_not_called()
+    room.assert_not_called()
+
+    store_msg_mock.assert_called_with(event)
 
 
 @pytest.mark.parametrize('image_data', [
@@ -479,3 +498,155 @@ def test_get_image_exception(requests_mock, logger_mock):
     logger_mock.error.assert_called_with(
         'could not download and analyze img: %s', "'problem'"
     )
+
+
+@pytest.mark.parametrize('event,db_prefill,db_all', [
+    (
+        {
+            'content': {
+                'msgtype': 'm.text',
+                'body': 'Foo Bar'
+            },
+            'sender': '@bar:foo.tld'
+        },
+        [],
+        [
+            {
+                'sender': '@bar:foo.tld',
+                'body': 'Foo Bar',
+            }
+        ]
+    ),
+    (
+        {
+            'content': {
+                'msgtype': 'm.text',
+                'body': 'Message 12'
+            },
+            'sender': '@bar:foo.tld'
+        },
+        [
+            {
+                'sender': '@bar:foo.tld',
+                'body': 'Message 1',
+            },
+            {
+                'sender': '@bar:foo.tld',
+                'body': 'Message 2',
+            },
+            {
+                'sender': '@bar:foo.tld',
+                'body': 'Message 3',
+            },
+            {
+                'sender': '@bar:foo.tld',
+                'body': 'Message 4',
+            },
+            {
+                'sender': '@bar:foo.tld',
+                'body': 'Message 5',
+            },
+            {
+                'sender': '@bar:foo.tld',
+                'body': 'Message 6',
+            },
+            {
+                'sender': '@bar:foo.tld',
+                'body': 'Message 7',
+            },
+            {
+                'sender': '@bar:foo.tld',
+                'body': 'Message 8',
+            },
+            {
+                'sender': '@bar:foo.tld',
+                'body': 'Message 9',
+            },
+            {
+                'sender': '@bar:foo.tld',
+                'body': 'Message 10',
+            },
+            {
+                'sender': '@bar:foo.tld',
+                'body': 'Message 11',
+            },
+        ],
+        [
+            {
+                'sender': '@bar:foo.tld',
+                'body': 'Message 3',
+            },
+            {
+                'sender': '@bar:foo.tld',
+                'body': 'Message 4',
+            },
+            {
+                'sender': '@bar:foo.tld',
+                'body': 'Message 5',
+            },
+            {
+                'sender': '@bar:foo.tld',
+                'body': 'Message 6',
+            },
+            {
+                'sender': '@bar:foo.tld',
+                'body': 'Message 7',
+            },
+            {
+                'sender': '@bar:foo.tld',
+                'body': 'Message 8',
+            },
+            {
+                'sender': '@bar:foo.tld',
+                'body': 'Message 9',
+            },
+            {
+                'sender': '@bar:foo.tld',
+                'body': 'Message 10',
+            },
+            {
+                'sender': '@bar:foo.tld',
+                'body': 'Message 11',
+            },
+            {
+                'sender': '@bar:foo.tld',
+                'body': 'Message 12',
+            },
+        ]
+
+    )
+])
+def test_store_msg(event, db_prefill, db_all, matrix_handler):
+    # prepare db
+    for prefill in db_prefill:
+        matrix_handler.db.table('msgs').insert(prefill)
+
+    # try to store event
+    matrix_handler.store_msg(event)
+
+    assert matrix_handler.db.table('msgs').all() == db_all
+
+    assert len(matrix_handler.db.table('msgs').all()) <= 10
+
+
+@mock.patch('mossbot.logger')
+@mock.patch('mossbot.MatrixHandler.db')
+def test_store_msg_exception(db_mock, logger_mock, matrix_handler):
+    db_mock.table.side_effect = KeyError('problem')
+
+    event = {
+        'content': {
+            'msgtype': 'm.text',
+            'body': 'Foo Bar'
+        },
+        'sender': '@bar:foo.tld'
+    }
+
+    assert matrix_handler.store_msg(event) is None
+
+    logger_mock.debug.assert_called_with(
+        'got event to store: %s',
+        str(event)
+    )
+
+    logger_mock.exception.assert_called_with('could not store msg')

@@ -12,6 +12,8 @@ import mossbot
 
 import pytest
 
+from tinydb import TinyDB
+
 
 @pytest.fixture
 def config():
@@ -25,8 +27,13 @@ def config():
 
 
 @pytest.fixture
-def matrix_handler(config):
-    m = mossbot.MatrixHandler(config)
+def db(tmpdir):
+    yield TinyDB(tmpdir.join('db.json').strpath)
+
+
+@pytest.fixture
+def matrix_handler(config, db):
+    m = mossbot.MatrixHandler(config, db)
     m.client = mock.Mock()
 
     yield m

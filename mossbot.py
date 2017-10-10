@@ -38,6 +38,8 @@ import pendulum
 
 import requests
 
+from tinydb import Query, TinyDB
+
 import yaml
 
 
@@ -59,6 +61,8 @@ ROUTES_TYPE = Dict[str, ROUTE_TYPE]
 
 class MossBot(object):
     """Bot routing logic."""
+
+    __slots__ = ['routes']
 
     def __init__(self) -> None:
         # stores all routes and its functions
@@ -155,7 +159,7 @@ def url_title(route: str, msg: str) -> MSG_RETURN:
         soup = BeautifulSoup(r.text, 'html.parser')
 
     except BaseException as e:
-        logger.warning('url_title could not get html title: %s', e)
+        logger.exception('url_title could not get html title: %s', e)
 
         return MSG_RETURN('skip', None)
 
@@ -198,7 +202,7 @@ def get_giphy_reaction_url(api_key: str, term: str) -> Union[str, None]:
         return None
 
     except BaseException as e:
-        logger.error('could not get giphy data: %s', e)
+        logger.exception('could not get giphy data: %s', e)
         return None
 
 
@@ -239,15 +243,28 @@ def get_image(
 class MatrixHandler(object):
     """Handling matrix connection and bot integration."""
 
-    def __init__(self, config: Dict[str, str]) -> None:
+    __slots__ = [
+        'client',
+        'db',
+        'giphy_api_key',
+        'hostname',
+        'password',
+        'stored_msg',
+        'sync_process',
+        'uid',
+        'username',
+    ]
+
+    def __init__(self, config: Dict[str, str], db: TinyDB) -> None:
         self.hostname = config['hostname']
         self.username = config['username']
         self.password = config['password']
         self.uid = config['uid']
-        self.giphy_api_key = config['giphy_api_key']
 
-        # self.client = None
-        # self.sync_process = None
+        self.db = db
+        self.stored_msg = Query()
+
+        self.giphy_api_key = config['giphy_api_key']
 
     def on_message(self, room: Room, event: Dict) -> None:
         """Callback for recieved messages.
@@ -255,6 +272,10 @@ class MatrixHandler(object):
         Gets events and checks if something can be triggered.
         """
         logger.debug(event)
+
+        logger.info('stores msg in db')
+        self.store_msg(event)
+
         if event['content'].get('msgtype') == 'm.text' and event['sender'] != \
                 self.uid:
 
@@ -309,7 +330,7 @@ class MatrixHandler(object):
                 # pylint: disable=protected-access
                 self.client._sync(timeout_ms)
             except BaseException as e:
-                logger.error('problem with sync: %s', e)
+                logger.exception('problem with sync: %s', e)
                 time.sleep(10)
 
             time.sleep(0.1)
@@ -365,7 +386,7 @@ class MatrixHandler(object):
                 sys.exit()
 
             except BaseException as e:
-                logger.error('problem while try to connect: %s', e)
+                logger.exception('problem while try to connect: %s', e)
                 time.sleep(10)
 
     def write_media(self, media_type: str, room: Room, url: str) -> None:
@@ -418,6 +439,40 @@ class MatrixHandler(object):
             **media_info
         )
 
+    def store_msg(self, event: Dict) -> None:
+        """Store msgs in a db."""
+        logger.debug('got event to store: %s', str(event))
+
+        try:
+
+            msgs_table = self.db.table('msgs')
+
+            if event['content']['msgtype'] == 'm.text':
+
+                all_sender_msgs = msgs_table.search(
+                    self.stored_msg.sender == event['sender']
+                )
+
+                while len(all_sender_msgs) >= 10:
+
+                    msgs_table.remove(doc_ids=[all_sender_msgs[0].doc_id])
+
+                    all_sender_msgs = msgs_table.search(
+                        self.stored_msg.sender == event['sender']
+                    )
+
+                msgs_table.insert(
+                    {
+                        'sender': event['sender'],
+                        'body': event['content']['body'],
+                    }
+                )
+
+        except BaseException:
+            logger.exception('could not store msg')
+
+            return None
+
 
 @click.command()
 @click.argument('config', type=click.File('r'))
@@ -427,7 +482,10 @@ def main(config: click.File, debug: bool) -> None:
     if debug:
         logzero.loglevel(logging.DEBUG)
 
-    MatrixHandler(yaml.load(config)).connect()
+    logger.info('create db object')
+    db = TinyDB('db.json')
+
+    MatrixHandler(yaml.load(config), db).connect()
 
 
 if __name__ == '__main__':

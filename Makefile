@@ -1,7 +1,7 @@
 .PHONY: init clean build run mypy pytest tox
 
 init:
-	pipenv --three
+	pipenv --python 3.6.3
 	pipenv install --dev
 
 clean:

@@ -1,4 +1,4 @@
-FROM python:alpine
+FROM python:3.6.3-alpine3.6
 
 RUN set -ex \
  && mkdir -p /opt/mossbot

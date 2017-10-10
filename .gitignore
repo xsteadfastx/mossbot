@@ -44,3 +44,4 @@ config*.yml
 .python-version
 .mypy_cache
 .vscode
+db.json
