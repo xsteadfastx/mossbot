@@ -25,3 +25,9 @@ pytest:
 
 tox:
 	pipenv run tox
+
+isort:
+	isort conftest.py
+	isort deploy.py
+	isort mossbot.py
+	isort test_mossbot.py

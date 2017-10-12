@@ -10,9 +10,10 @@ mypy = "*"
 pylint = "*"
 "flake8" = "*"
 "pytest-cov" = "*"
-"flake8-import-order" = "*"
 docker = "*"
 "pytest-sugar" = "*"
+isort = "*"
+"flake8-import-order" = "*"
 
 [packages]
 

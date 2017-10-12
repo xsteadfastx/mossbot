@@ -1,18 +1,14 @@
 # pylint: disable=redefined-builtin,missing-docstring,redefined-outer-name
 
 from io import BytesIO
-
 from unittest import mock
 
-from PIL import Image
-
+import pytest
 from matrix_client.room import Room
+from PIL import Image
+from tinydb import TinyDB
 
 import mossbot
-
-import pytest
-
-from tinydb import TinyDB
 
 
 @pytest.fixture

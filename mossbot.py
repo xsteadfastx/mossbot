@@ -1,46 +1,31 @@
 """mossbot"""
 
 import logging
-
 import mimetypes
-
 import random
-
 import re
-
 import sys
-
 import time
-
 from collections import OrderedDict
-
 from io import BytesIO
-
 from multiprocessing import Process
-
 from typing import Callable, Dict, NamedTuple, Union
-
 from urllib.parse import quote_plus, urlsplit
 
-from PIL import Image
-
-from bs4 import BeautifulSoup
-
 import click
-
-import logzero
-from logzero import logger
-
+import pendulum
+import requests
+import yaml
+from bs4 import BeautifulSoup
+from logzero import logger, loglevel
 from matrix_client.client import MatrixClient
 from matrix_client.room import Room
-
-import pendulum
-
-import requests
-
+from PIL import Image
 from tinydb import Query, TinyDB
 
-import yaml
+##############################################################################
+# TYPES and CONSTANTS #########################################################
+##############################################################################
 
 
 # tuple to store route return data
@@ -53,15 +38,96 @@ MSG_RETURN = NamedTuple(
 )
 
 # type for route functions
-ROUTE_TYPE = Callable[[Union[str, None], Union[str, None]], MSG_RETURN]
+ROUTE_TYPE = Callable[[Union[str, None], Union[str, None], Dict], MSG_RETURN]
 
 # dict to store routes and its functions
 ROUTES_TYPE = Dict[str, ROUTE_TYPE]
 
 
+##############################################################################
+# HELPER FUNCTIONS ###########################################################
+##############################################################################
+
+
 def get_db() -> TinyDB:
     """Creates database"""
     return TinyDB('db.json')
+
+
+def get_giphy_reaction_url(api_key: str, term: str) -> Union[str, None]:
+    """Gets a random giphy gif and returns url
+
+    :param api_key: GIPHY api key
+    :param term: search term
+    :returns: gif url
+    """
+    term = quote_plus(term)
+
+    url = (
+        f'http://api.giphy.com/v1/gifs/search'
+        f'?api_key={api_key}'
+        f'&q={term}'
+        f'&limit=20'
+    )
+
+    try:
+        r = requests.get(url)
+
+        if 'data' in r.json().keys() and len(r.json()['data']) >= 1:
+            random_gif = random.choice(r.json()['data'])
+            gif_url = random_gif['images']['downsized']['url']
+
+            return gif_url.split('?')[0]
+
+        logger.error('could not get reaction video url')
+        return None
+
+    except BaseException as e:
+        logger.exception('could not get giphy data: %s', e)
+        return None
+
+
+def get_image(
+        url: str
+) -> Union[Dict[str, Union[int, str, BytesIO, None]], None]:
+    """Downloads image and analyzes it
+
+    :param url: image url
+    :returns: dictionary with image and meta data
+    """
+    try:
+        logger.info('downloading image: %s', url)
+        r = requests.get(url)
+
+        if r.status_code == 200:
+
+            # loading binary data to mem
+            img = BytesIO(r.content)
+
+            # loading image to PIL
+            pil_img = Image.open(img)
+
+            # seek to 0
+            img.seek(0)
+
+            return {
+                'content-type': r.headers.get('Content-Type'),
+                'image': img,
+                'width': pil_img.width,
+                'height': pil_img.height,
+            }
+
+        raise Exception('wrong status code %s', r.status_code)
+
+    except BaseException as e:
+        logger.error('could not download and analyze img: %s', str(e))
+
+        return None
+
+
+##############################################################################
+# MOSSBOT LOGIC ##############################################################
+##############################################################################
 
 
 class MossBot(object):
@@ -95,6 +161,7 @@ class MossBot(object):
             m = re.search(k, raw_msg, re.IGNORECASE)
 
             if m:
+
                 matches = m.groupdict()
                 route = matches.get('route')
                 msg = matches.get('msg')
@@ -113,7 +180,7 @@ class MossBot(object):
                         route, msg, raw_msg, func.__name__
                     )
 
-                    return func(route, msg)
+                    return func(route, msg, event)
 
                 logger.error('%s not in routes', k)
 
@@ -125,8 +192,13 @@ class MossBot(object):
 MOSS = MossBot()
 
 
+##############################################################################
+# ROUTES #####################################################################
+##############################################################################
+
+
 @MOSS.route(r'^(?P<route>!ping)$')
-def ping(route: str, msg: str) -> MSG_RETURN:
+def ping(route: str, msg: str, event: Dict) -> MSG_RETURN:
     """Pongs back in a Moss way"""
     oneliners = (
         'Good morning, thats a nice TNETENNBA',
@@ -138,7 +210,7 @@ def ping(route: str, msg: str) -> MSG_RETURN:
 
 
 @MOSS.route(r'(?P<route>^http[s]?://.*(?:jpg|jpeg|png|gif)$)')
-def image(route: str, msg: str) -> MSG_RETURN:
+def image(route: str, msg: str, event: Dict) -> MSG_RETURN:
     """Posts image"""
     return MSG_RETURN('image', route)
 
@@ -154,7 +226,7 @@ def image(route: str, msg: str) -> MSG_RETURN:
         r'\s?(?P<msg>.*)?'
     )
 )
-def url_title(route: str, msg: str) -> MSG_RETURN:
+def url_title(route: str, msg: str, event: Dict) -> MSG_RETURN:
     """Takes postet urls and parses the title"""
     try:
 
@@ -178,71 +250,60 @@ def url_title(route: str, msg: str) -> MSG_RETURN:
 
 
 @MOSS.route(r'^(?P<route>!reaction)\s+(?P<msg>.+)')
-def reaction(route: str, msg: str) -> MSG_RETURN:
-    """Posts reaction gif"""
+def reaction(route: str, msg: str, event: Dict) -> MSG_RETURN:
+    """Posts reaction gif
+
+    :param route: reaction route
+    :param msg: reaction to look for
+    """
     return MSG_RETURN('reaction', msg)
 
 
-def get_giphy_reaction_url(api_key: str, term: str) -> Union[str, None]:
-    """Gets a random giphy gif and returns url"""
-    term = quote_plus(term)
+@MOSS.route(r'^s/(?P<route>.+)/(?P<msg>.+)$')
+def replace(route: str, msg: str, event: Dict) -> MSG_RETURN:
+    """Search and replace
 
-    url = (
-        f'http://api.giphy.com/v1/gifs/search'
-        f'?api_key={api_key}'
-        f'&q={term}'
-        f'&limit=20'
-    )
-
+    :param route: search term
+    :param msg: replace term
+    :param event: full event dict
+    """
     try:
-        r = requests.get(url)
 
-        if 'data' in r.json().keys() and len(r.json()['data']) >= 1:
-            random_gif = random.choice(r.json()['data'])
-            gif_url = random_gif['images']['downsized']['url']
+        db = get_db()
+        msgs_table = db.table('msgs')
+        stored_msg = Query()
 
-            return gif_url.split('?')[0]
+        # get all user msgs
+        all_sender_msgs = msgs_table.search(
+            stored_msg.sender == event['sender']
+        )
 
-        logger.error('could not get reaction video url')
-        return None
+        for user_msg in reversed(all_sender_msgs):
+
+            # message should not match the route
+            if not re.match(r'^s/.+/.+$', user_msg['body']):
+
+                sender = user_msg['sender']
+                body = user_msg['body'].replace(route, msg)
+
+                return MSG_RETURN(
+                    'html',
+                    f'<i><b>{sender}</b>: {body}</i>'
+                )
+
+        logger.warning(
+            'no usable msg for search and replace'
+        )
+        return MSG_RETURN('skip', None)
 
     except BaseException as e:
-        logger.exception('could not get giphy data: %s', e)
-        return None
+        logger.exception('could not search and replace: %s', e)
+        return MSG_RETURN('skip', None)
 
 
-def get_image(
-        url: str
-) -> Union[Dict[str, Union[int, str, BytesIO, None]], None]:
-    """Downloads image and analyzes it"""
-    try:
-        logger.info('downloading image: %s', url)
-        r = requests.get(url)
-
-        if r.status_code == 200:
-
-            # loading binary data to mem
-            img = BytesIO(r.content)
-
-            # loading image to PIL
-            pil_img = Image.open(img)
-
-            # seek to 0
-            img.seek(0)
-
-            return {
-                'content-type': r.headers.get('Content-Type'),
-                'image': img,
-                'width': pil_img.width,
-                'height': pil_img.height,
-            }
-
-        raise Exception('wrong status code %s', r.status_code)
-
-    except BaseException as e:
-        logger.error('could not download and analyze img: %s', str(e))
-
-        return None
+##############################################################################
+# MATRIX HANDLING ############################################################
+##############################################################################
 
 
 class MatrixHandler(object):
@@ -479,13 +540,18 @@ class MatrixHandler(object):
             return None
 
 
+##############################################################################
+# USER INTERFACE
+##############################################################################
+
+
 @click.command()
 @click.argument('config', type=click.File('r'))
 @click.option('--debug', is_flag=True)
 def main(config: click.File, debug: bool) -> None:
     """Main"""
     if debug:
-        logzero.loglevel(logging.DEBUG)
+        loglevel(logging.DEBUG)
 
     MatrixHandler(yaml.load(config)).connect()
 

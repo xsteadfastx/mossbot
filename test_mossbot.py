@@ -1,12 +1,11 @@
 # pylint: disable=redefined-builtin,missing-docstring
 
 from io import BytesIO
-
 from unittest import mock
 
-import mossbot
-
 import pytest
+
+import mossbot
 
 
 @pytest.mark.parametrize('input,expected', [
@@ -20,7 +19,8 @@ def test_serve(input, expected):
     moss = mossbot.MossBot()
 
     @moss.route(r'(?P<route>hello)\s?(?P<msg>.*)')
-    def servetest(route=None, msg=None):  # pylint: disable=unused-variable
+    # pylint: disable=unused-variable
+    def servetest(route=None, msg=None, event=None):
         """servetest function"""
         if msg:
             name = msg
@@ -650,3 +650,80 @@ def test_store_msg_exception(db_mock, logger_mock, matrix_handler):
     )
 
     logger_mock.exception.assert_called_with('could not store msg')
+
+
+@pytest.mark.parametrize('event,db_prefill,expected', [
+    (
+        {
+            'content': {
+                'msgtype': 'm.text',
+                'body': 's/Foo Bar/Zick Zack'
+            },
+            'sender': '@bar:foo.tld'
+        },
+        [
+            {
+                'sender': '@bar:foo.tld',
+                'body': 'Message 1',
+            },
+            {
+                'sender': '@bar:foo.tld',
+                'body': 'Dies ist ein Foo Bar',
+            },
+            {
+                'sender': '@bar:foo.tld',
+                'body': 's/Foo Bar/Zick Zack',
+            },
+        ],
+        mossbot.MSG_RETURN(
+            'html',
+            '<i><b>@bar:foo.tld</b>: Dies ist ein Zick Zack</i>'
+        )
+    ),
+    (
+        {
+            'content': {
+                'msgtype': 'm.text',
+                'body': 's/Foo Bar/Zick Zack'
+            },
+            'sender': '@bar:foo.tld'
+        },
+        [
+            {
+                'sender': '@bar:foo.tld',
+                'body': 's/Foo Bar/Zick Zack'
+            }
+        ],
+        mossbot.MSG_RETURN(
+            'skip',
+            None
+        )
+    ),
+])
+@mock.patch('mossbot.get_db')
+def test_replace(get_db_mock, db, event, db_prefill, expected):
+    # prepare database
+    for prefill in db_prefill:
+        db.table('msgs').insert(prefill)
+
+    get_db_mock.return_value = db
+
+    assert mossbot.MOSS.serve(event) == expected
+
+
+@mock.patch('mossbot.logger')
+@mock.patch('mossbot.get_db')
+def test_replace_exception(get_db_mock, logger_mock):
+    get_db_mock.side_effect = KeyError('problem')
+
+    assert mossbot.MOSS.serve(
+        {
+            'content': {
+                'msgtype': 'm.text',
+                'body': 's/Foo Bar/Zick Zack'
+            },
+            'sender': '@bar:foo.tld'
+        }
+    ) == mossbot.MSG_RETURN('skip', None)
+
+    assert logger_mock.exception.called is True
