@@ -32,8 +32,14 @@ def db(tmpdir):
 
 
 @pytest.fixture
-def matrix_handler(config, db):
-    m = mossbot.MatrixHandler(config, db)
+def matrix_handler(config, monkeypatch, tmpdir):
+
+    monkeypatch.setattr(
+        'mossbot.get_db',
+        lambda: TinyDB(tmpdir.join('db.json').strpath)
+    )
+
+    m = mossbot.MatrixHandler(config)
     m.client = mock.Mock()
 
     yield m

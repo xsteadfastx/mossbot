@@ -59,6 +59,11 @@ ROUTE_TYPE = Callable[[Union[str, None], Union[str, None]], MSG_RETURN]
 ROUTES_TYPE = Dict[str, ROUTE_TYPE]
 
 
+def get_db() -> TinyDB:
+    """Creates database."""
+    return TinyDB('db.json')
+
+
 class MossBot(object):
     """Bot routing logic."""
 
@@ -255,13 +260,13 @@ class MatrixHandler(object):
         'username',
     ]
 
-    def __init__(self, config: Dict[str, str], db: TinyDB) -> None:
+    def __init__(self, config: Dict[str, str]) -> None:
         self.hostname = config['hostname']
         self.username = config['username']
         self.password = config['password']
         self.uid = config['uid']
 
-        self.db = db
+        self.db = get_db()
         self.stored_msg = Query()
 
         self.giphy_api_key = config['giphy_api_key']
@@ -482,10 +487,7 @@ def main(config: click.File, debug: bool) -> None:
     if debug:
         logzero.loglevel(logging.DEBUG)
 
-    logger.info('create db object')
-    db = TinyDB('db.json')
-
-    MatrixHandler(yaml.load(config), db).connect()
+    MatrixHandler(yaml.load(config)).connect()
 
 
 if __name__ == '__main__':
