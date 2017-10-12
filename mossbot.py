@@ -60,12 +60,12 @@ ROUTES_TYPE = Dict[str, ROUTE_TYPE]
 
 
 def get_db() -> TinyDB:
-    """Creates database."""
+    """Creates database"""
     return TinyDB('db.json')
 
 
 class MossBot(object):
-    """Bot routing logic."""
+    """Bot routing logic"""
 
     __slots__ = ['routes']
 
@@ -74,7 +74,7 @@ class MossBot(object):
         self.routes = OrderedDict()  # type: ROUTES_TYPE
 
     def route(self, route: str) -> Callable:
-        """Decorator to save routes to a dictionary."""
+        """Decorator to save routes to a dictionary"""
 
         def decorator(f: Callable) -> Callable:
             """Decorates the function."""
@@ -85,7 +85,7 @@ class MossBot(object):
         return decorator
 
     def serve(self, event: Dict) -> Union[MSG_RETURN, None]:
-        """Returns the right function for matching route.
+        """Returns the right function for matching route
 
         :param event: Event json object
         :returns: Matched function from route
@@ -127,7 +127,7 @@ MOSS = MossBot()
 
 @MOSS.route(r'^(?P<route>!ping)$')
 def ping(route: str, msg: str) -> MSG_RETURN:
-    """Pongs back in a Moss way."""
+    """Pongs back in a Moss way"""
     oneliners = (
         'Good morning, thats a nice TNETENNBA',
         'Ow. Four! I mean, five! I mean, fire!',
@@ -139,7 +139,7 @@ def ping(route: str, msg: str) -> MSG_RETURN:
 
 @MOSS.route(r'(?P<route>^http[s]?://.*(?:jpg|jpeg|png|gif)$)')
 def image(route: str, msg: str) -> MSG_RETURN:
-    """Posts image."""
+    """Posts image"""
     return MSG_RETURN('image', route)
 
 
@@ -155,7 +155,7 @@ def image(route: str, msg: str) -> MSG_RETURN:
     )
 )
 def url_title(route: str, msg: str) -> MSG_RETURN:
-    """Takes postet urls and parses the title."""
+    """Takes postet urls and parses the title"""
     try:
 
         logger.debug('get "%s"', route)
@@ -179,12 +179,12 @@ def url_title(route: str, msg: str) -> MSG_RETURN:
 
 @MOSS.route(r'^(?P<route>!reaction)\s+(?P<msg>.+)')
 def reaction(route: str, msg: str) -> MSG_RETURN:
-    """Posts reaction gif."""
+    """Posts reaction gif"""
     return MSG_RETURN('reaction', msg)
 
 
 def get_giphy_reaction_url(api_key: str, term: str) -> Union[str, None]:
-    """Gets a random giphy gif and returns url."""
+    """Gets a random giphy gif and returns url"""
     term = quote_plus(term)
 
     url = (
@@ -214,7 +214,7 @@ def get_giphy_reaction_url(api_key: str, term: str) -> Union[str, None]:
 def get_image(
         url: str
 ) -> Union[Dict[str, Union[int, str, BytesIO, None]], None]:
-    """Downloads image and analyzes it."""
+    """Downloads image and analyzes it"""
     try:
         logger.info('downloading image: %s', url)
         r = requests.get(url)
@@ -246,7 +246,7 @@ def get_image(
 
 
 class MatrixHandler(object):
-    """Handling matrix connection and bot integration."""
+    """Handling matrix connection and bot integration"""
 
     __slots__ = [
         'client',
@@ -272,7 +272,7 @@ class MatrixHandler(object):
         self.giphy_api_key = config['giphy_api_key']
 
     def on_message(self, room: Room, event: Dict) -> None:
-        """Callback for recieved messages.
+        """Callback for recieved messages
 
         Gets events and checks if something can be triggered.
         """
@@ -323,12 +323,12 @@ class MatrixHandler(object):
                 logger.error('no msg or msg.data')
 
     def on_invite(self, room_id, state):
-        """Callback for recieving invites."""
+        """Callback for recieving invites"""
         logger.info('got invite for room %s', room_id)
         self.client.join_room(room_id)
 
     def listen_forever(self, timeout_ms: int = 30000) -> None:
-        """Loop to run _sync in a process."""
+        """Loop to run _sync in a process"""
         while True:
 
             try:
@@ -395,7 +395,7 @@ class MatrixHandler(object):
                 time.sleep(10)
 
     def write_media(self, media_type: str, room: Room, url: str) -> None:
-        """Get media, upload it and post to room.
+        """Get media, upload it and post to room
         """
         # image is the only media type supported right now
         if media_type != 'image':
@@ -445,7 +445,7 @@ class MatrixHandler(object):
         )
 
     def store_msg(self, event: Dict) -> None:
-        """Store msgs in a db."""
+        """Store msgs in a db"""
         logger.debug('got event to store: %s', str(event))
 
         try:
@@ -483,7 +483,7 @@ class MatrixHandler(object):
 @click.argument('config', type=click.File('r'))
 @click.option('--debug', is_flag=True)
 def main(config: click.File, debug: bool) -> None:
-    """Main."""
+    """Main"""
     if debug:
         logzero.loglevel(logging.DEBUG)
 
