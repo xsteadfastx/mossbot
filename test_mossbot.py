@@ -112,6 +112,24 @@ def test_on_message_nothing(moss_mock, store_msg_mock, matrix_handler, room):
     store_msg_mock.assert_called_with(event)
 
 
+@mock.patch('mossbot.logger')
+@mock.patch('mossbot.MOSS', autospec=True)
+def test_on_message_no_msg(moss_mock, logger_mock, matrix_handler, room):
+    moss_mock.serve.return_value = None
+
+    event = {
+        'content': {
+            'msgtype': 'm.text',
+            'body': 'Foo Bar'
+        },
+        'sender': '@bar:foo.tld'
+    }
+
+    matrix_handler.on_message(room, event)
+
+    logger_mock.debug.assert_called_with('no matching in event')
+
+
 @mock.patch('mossbot.MatrixHandler.store_msg')
 @mock.patch('mossbot.MatrixHandler.write_media')
 @mock.patch('mossbot.MOSS', autospec=True)

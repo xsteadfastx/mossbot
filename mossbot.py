@@ -381,7 +381,7 @@ class MatrixHandler(object):
                     )
 
             else:
-                logger.error('no msg or msg.data')
+                logger.debug('no matching in event')
 
     def on_invite(self, room_id, state):
         """Callback for recieving invites"""
