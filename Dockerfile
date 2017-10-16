@@ -1,13 +1,13 @@
 FROM python:3.6.3-alpine3.6
 
 RUN set -ex \
- && mkdir -p /opt/mossbot
+ && mkdir -p /app
 
-COPY mossbot.py /opt/mossbot/mossbot.py
-COPY Pipfile /opt/mossbot/Pipfile
-COPY Pipfile.lock /opt/mossbot/Pipfile.lock
+COPY mossbot.py /app/mossbot.py
+COPY Pipfile /app/Pipfile
+COPY Pipfile.lock /app/Pipfile.lock
 
-WORKDIR /opt/mossbot
+WORKDIR app/
 
 RUN set -ex \
  && apk upgrade -a --no-cache \
@@ -24,10 +24,10 @@ RUN set -ex \
         zlib \
  && pip install pipenv \
  && addgroup -S mossbot \
- && adduser -h /opt/mossbot -H -S -G mossbot -s /bin/sh mossbot \
- && chown -R mossbot:mossbot /opt/mossbot \
- && su mossbot -c "pipenv install --three" \
+ && adduser -h /app -H -S -G mossbot -s /bin/sh mossbot \
+ && chown -R mossbot:mossbot /app \
+ && pipenv install --deploy --system  \
  && apk del .buildDeps
 
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["su-exec", "mossbot", "pipenv", "run", "python", "mossbot.py", "config.yml"]
+CMD ["su-exec", "mossbot", "python", "mossbot.py", "config.yml"]

@@ -33,7 +33,7 @@ client.containers.run(
     detach=True,
     volumes={
         '/opt/mossbot/config.yml': {
-            'bind': '/opt/mossbot/config.yml',
+            'bind': '/app/config.yml',
             'mode': 'ro'
         }
     },
