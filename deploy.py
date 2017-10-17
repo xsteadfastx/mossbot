@@ -35,6 +35,9 @@ client.containers.run(
         '/opt/mossbot/config.yml': {
             'bind': '/app/config.yml',
             'mode': 'ro'
+        },
+        'mossbot_db': {
+            'bind': '/app/db.json',
         }
     },
     name='mossbot',
