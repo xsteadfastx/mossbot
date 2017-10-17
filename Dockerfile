@@ -1,5 +1,8 @@
 FROM python:3.6.3-alpine3.6
 
+ARG USER_ID=1000
+ARG GROUP_ID=1000
+
 RUN set -ex \
  && mkdir -p /app
 
@@ -23,8 +26,8 @@ RUN set -ex \
         tini \
         zlib \
  && pip install pipenv \
- && addgroup -S mossbot \
- && adduser -h /app -H -S -G mossbot -s /bin/sh mossbot \
+ && addgroup -g $GROUP_ID -S mossbot \
+ && adduser -h /app -u $USER_ID -H -S -G mossbot -s /bin/sh mossbot \
  && chown -R mossbot:mossbot /app \
  && pipenv install --deploy --system  \
  && apk del .buildDeps
