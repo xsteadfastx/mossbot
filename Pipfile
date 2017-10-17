@@ -1,6 +1,8 @@
 [[source]]
+
 url = "https://pypi.python.org/simple"
 verify_ssl = true
+
 
 [dev-packages]
 
@@ -9,11 +11,13 @@ pytest = "*"
 mypy = "*"
 pylint = "*"
 "flake8" = "*"
-"pytest-cov" = "*"
+pytest-cov = "*"
 docker = "*"
-"pytest-sugar" = "*"
+pytest-sugar = "*"
 isort = "*"
 "flake8-import-order" = "*"
+codecov = "*"
+
 
 [packages]
 
@@ -23,6 +27,6 @@ pendulum = "*"
 pyyaml = "*"
 requests = "*"
 logzero = "*"
-"matrix-client" = "*"
+matrix-client = "*"
 pillow = "*"
 tinydb = "*"

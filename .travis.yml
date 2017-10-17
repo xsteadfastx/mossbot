@@ -3,9 +3,11 @@ python:
         - 3.6
 env:
         - TOXENV=py36
+        - TOXENV=codecov
         - TOXENV=flake8
-        - TOXENV=pylint
         - TOXENV=mypy
+        - TOXENV=py36
+        - TOXENV=pylint
 install:
         - travis_retry pip install tox
 script: tox -e $TOXENV

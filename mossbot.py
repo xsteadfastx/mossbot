@@ -256,7 +256,21 @@ def reaction(route: str, msg: str, event: Dict) -> MSG_RETURN:
     :param route: reaction route
     :param msg: reaction to look for
     """
-    return MSG_RETURN('reaction', msg)
+    try:
+
+        gif_url = get_giphy_reaction_url(
+            event['config']['giphy_api_key'],
+            msg
+        )
+        if gif_url:
+            return MSG_RETURN('image', gif_url)
+
+        logger.error('no gif url')
+
+    except BaseException as e:
+        logger.exception('could not get reaction: %s', e)
+
+    return MSG_RETURN('skip', None)
 
 
 @MOSS.route(r'^s/(?P<route>.+)/(?P<msg>.+)$')
@@ -311,6 +325,7 @@ class MatrixHandler(object):
 
     __slots__ = [
         'client',
+        'config',
         'db',
         'giphy_api_key',
         'hostname',
@@ -322,6 +337,8 @@ class MatrixHandler(object):
     ]
 
     def __init__(self, config: Dict[str, str]) -> None:
+        self.config = config
+
         self.hostname = config['hostname']
         self.username = config['username']
         self.password = config['password']
@@ -345,7 +362,12 @@ class MatrixHandler(object):
         if event['content'].get('msgtype') == 'm.text' and event['sender'] != \
                 self.uid:
 
+            # add config to event
+            event['config'] = self.config
+
+            # gives event to mossbot and watching out for a return message
             msg = MOSS.serve(event)
+
             if msg and msg.data:
 
                 if msg.type == 'text':
@@ -359,17 +381,6 @@ class MatrixHandler(object):
 
                 elif msg.type == 'image':
                     self.write_media('image', room, msg.data)
-
-                elif msg.type == 'reaction':
-                    if msg.data:
-                        gif_url = get_giphy_reaction_url(
-                            self.giphy_api_key,
-                            msg.data
-                        )
-                        if gif_url:
-                            self.write_media('image', room, gif_url)
-                        else:
-                            logger.error('no gif_url')
 
                 elif msg.type == 'skip':
                     pass

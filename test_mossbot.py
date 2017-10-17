@@ -88,11 +88,78 @@ def test_image(route, expected):
     assert mossbot.MOSS.serve({'content': {'body': route}}) == expected
 
 
-@pytest.mark.parametrize('route,expected', [
-    ('!reaction foo bar', ('reaction', 'foo bar'))
+@pytest.mark.parametrize('event,gif_url,expected', [
+    (
+        {
+            'content': {
+                'body': '!reaction foo bar'
+            },
+            'config': {
+                'giphy_api_key': 'abc123',
+            }
+        },
+        'http://foo.bar/zonk.gif',
+        mossbot.MSG_RETURN('image', 'http://foo.bar/zonk.gif')
+    ),
+    (
+        {
+            'content': {
+                'body': '!reaction foo bar'
+            },
+            'config': {
+                'giphy_api_key': 'abc123',
+            }
+        },
+        None,
+        mossbot.MSG_RETURN('skip', None)
+    )
 ])
-def test_reaction(route, expected):
-    assert mossbot.MOSS.serve({'content': {'body': route}}) == expected
+@mock.patch('mossbot.logger')
+@mock.patch('mossbot.get_giphy_reaction_url')
+def test_reaction(
+        get_giphy_reaction_url_mock,
+        logger_mock,
+        event,
+        gif_url,
+        expected
+):
+    get_giphy_reaction_url_mock.return_value = gif_url
+
+    assert mossbot.MOSS.serve(event) == expected
+
+    if not gif_url:
+        assert logger_mock.error.called is True
+    else:
+        assert logger_mock.error.called is False
+
+    assert logger_mock.exception.called is False
+
+
+@pytest.mark.parametrize('event,gif_url,expected', [
+    (
+        {
+            'content': {
+                'body': '!reaction foo bar'
+            }
+        },
+        'http://foo.bar/zonk.gif',
+        mossbot.MSG_RETURN('skip', None)
+    )
+])
+@mock.patch('mossbot.logger')
+@mock.patch('mossbot.get_giphy_reaction_url')
+def test_reaction_exception(
+        get_giphy_reaction_url_mock,
+        logger_mock,
+        event,
+        gif_url,
+        expected
+):
+    get_giphy_reaction_url_mock.return_value = gif_url
+
+    assert mossbot.MOSS.serve(event) == expected
+
+    assert logger_mock.exception.called is True
 
 
 @mock.patch('mossbot.MatrixHandler.store_msg')
@@ -165,11 +232,9 @@ def test_on_message_image(
 
 @mock.patch('mossbot.MatrixHandler.store_msg')
 @mock.patch('mossbot.MatrixHandler.write_media')
-@mock.patch('mossbot.get_giphy_reaction_url')
 @mock.patch('mossbot.MOSS', autospec=True)
 def test_on_message_reaction(
         moss_mock,
-        giphy_mock,
         write_media_mock,
         store_msg_mock,
         matrix_handler,
@@ -178,15 +243,14 @@ def test_on_message_reaction(
     event = {
         'content': {
             'msgtype': 'm.text',
-            'body': 'Foo Bar'
+            'body': '!reaction foo bar'
         },
         'sender': '@bar:foo.tld'
     }
 
-    msg = mossbot.MSG_RETURN('reaction', 'it crowd')
+    msg = mossbot.MSG_RETURN('image', 'https://foo.tld/bar.gif')
 
     moss_mock.serve.return_value = msg
-    giphy_mock.return_value = 'https://foo.tld/bar.gif'
 
     matrix_handler.on_message(room, event)
 
@@ -194,11 +258,6 @@ def test_on_message_reaction(
         'image',
         room,
         'https://foo.tld/bar.gif'
-    )
-
-    giphy_mock.assert_called_with(
-        'f00b4r',
-        'it crowd'
     )
 
     store_msg_mock.assert_called_with(event)
