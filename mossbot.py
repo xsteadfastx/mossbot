@@ -182,10 +182,6 @@ class MossBot(object):
 
                     return func(route, msg, event)
 
-                logger.error('%s not in routes', k)
-
-                return None
-
         return None
 
 
