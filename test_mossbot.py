@@ -61,10 +61,22 @@ def test_ping(input, expected):
     ),
 ])
 @mock.patch('mossbot.requests.get')
-def test_url(requests_mock, route, html, expected):
+def test_url_title(requests_mock, route, html, expected):
     requests_mock.return_value.text = html
 
     assert mossbot.MOSS.serve({'content': {'body': route}}) == expected
+
+
+@mock.patch('mossbot.logger')
+@mock.patch('mossbot.requests')
+def test_url_title_exception(requests_mock, logger_mock):
+    requests_mock.get.side_effect = Exception('foo bar')
+
+    assert mossbot.MOSS.serve(
+        {'content': {'body': 'http://foo.bar'}}
+    ) == ('skip', None)
+
+    assert logger_mock.exception.called is True
 
 
 @mock.patch('mossbot.requests.get')
