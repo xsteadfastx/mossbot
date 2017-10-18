@@ -1,4 +1,4 @@
-.PHONY: init clean build run mypy pytest tox
+.PHONY: init clean build run mypy pytest tox isort push
 
 init:
 	pipenv --python 3.6.3
@@ -31,3 +31,7 @@ isort:
 	isort deploy.py
 	isort mossbot.py
 	isort test_mossbot.py
+
+push:
+	git push origin master
+	git push gitea master
