@@ -804,3 +804,10 @@ def test_replace_exception(get_db_mock, logger_mock):
     ) == mossbot.MSG_RETURN('skip', None)
 
     assert logger_mock.exception.called is True
+
+
+@mock.patch('mossbot.TinyDB')
+def test_get_db(tinydb_mock):
+    mossbot.get_db()
+
+    tinydb_mock.assert_called_with('db.json')
