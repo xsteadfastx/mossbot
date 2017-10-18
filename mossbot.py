@@ -311,6 +311,49 @@ def replace(route: str, msg: str, event: Dict) -> MSG_RETURN:
         return MSG_RETURN('skip', None)
 
 
+@MOSS.route(r'^(?P<route>!weather)\s+(?P<msg>.+)$')
+def weather(route: str, msg: str, event: Dict) -> MSG_RETURN:
+    """Gets weather
+
+    :param route: weather route
+    :param msg: city to look for
+    :param event: full event dict
+    """
+    try:
+
+        api_key = event['config']['openweathermap_api_key']
+
+        r = requests.get(
+            (
+                'http://api.openweathermap.org/data/2.5/'
+                f'weather?q={msg}&APPID={api_key}&units=metric'
+            )
+        )
+
+        weather_data = r.json()
+        logger.debug('got weather data: %s', weather_data)
+
+        if weather_data['cod'] == '404':
+            return MSG_RETURN('notice', f'could not find city {msg}')
+
+        weather_in_words = weather_data['weather'][0]['main']
+        temp = weather_data['main']['temp']
+        city = weather_data['name']
+
+        return MSG_RETURN(
+            'html',
+            (
+                f'The weather in <i>{city}</i>: '
+                f'<b>{weather_in_words}</b> with a temperature of '
+                f'<b>{temp}°C</b>'
+            )
+        )
+
+    except BaseException as e:
+        logger.exception('problem with getting weather: %s', e)
+        return MSG_RETURN('notice', 'problem with getting weather')
+
+
 ##############################################################################
 # MATRIX HANDLING ############################################################
 ##############################################################################
@@ -325,6 +368,7 @@ class MatrixHandler(object):
         'db',
         'giphy_api_key',
         'hostname',
+        'openweathermap_api_key',
         'password',
         'stored_msg',
         'sync_process',
@@ -344,6 +388,7 @@ class MatrixHandler(object):
         self.stored_msg = Query()
 
         self.giphy_api_key = config['giphy_api_key']
+        self.openweathermap_api_key = config['openweathermap_api_key']
 
     def on_message(self, room: Room, event: Dict) -> None:
         """Callback for recieved messages

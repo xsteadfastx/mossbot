@@ -823,3 +823,75 @@ def test_get_db(tinydb_mock):
     mossbot.get_db()
 
     tinydb_mock.assert_called_with('db.json')
+
+
+@pytest.mark.parametrize('return_data,expected', [
+    (
+        {
+            'weather': [
+                {
+                    'main': 'Fog'
+                }
+            ],
+            'main': {
+                'temp': '20',
+            },
+            'name': 'Wolfsburg',
+            'cod': '200',
+        },
+        mossbot.MSG_RETURN(
+            'html',
+            (
+                'The weather in <i>Wolfsburg</i>: '
+                '<b>Fog</b> with a temperature of <b>20°C</b>'
+            )
+        )
+    ),
+    (
+        {
+            'cod': '404'
+        },
+        mossbot.MSG_RETURN(
+            'notice',
+            'could not find city wolfsburg'
+        )
+    )
+])
+@mock.patch('mossbot.requests')
+def test_weather(requests_mock, return_data, expected, config):
+    requests_mock.get.return_value.json.return_value = return_data
+
+    event = {
+        'content': {
+            'msgtype': 'm.text',
+            'body': '!weather wolfsburg'
+        },
+        'sender': '@bar:foo.tld'
+    }
+
+    event['config'] = config
+
+    assert mossbot.MOSS.serve(event) == expected
+
+
+@mock.patch('mossbot.logger')
+@mock.patch('mossbot.requests')
+def test_weather_exception(requests_mock, logger_mock, config):
+    requests_mock.get.side_effect = Exception('foo bar')
+
+    event = {
+        'content': {
+            'msgtype': 'm.text',
+            'body': '!weather wolfsburg'
+        },
+        'sender': '@bar:foo.tld'
+    }
+
+    event['config'] = config
+
+    assert mossbot.MOSS.serve(event) == mossbot.MSG_RETURN(
+        'notice',
+        'problem with getting weather'
+    )
+
+    assert logger_mock.exception.called is True

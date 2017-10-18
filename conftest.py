@@ -19,6 +19,7 @@ def config():
         'hostname': 'bar.tld',
         'uid': '@foo:bar.tld',
         'giphy_api_key': 'f00b4r',
+        'openweathermap_api_key': 'b4rf00',
     }
 
 
