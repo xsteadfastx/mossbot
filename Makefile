@@ -12,6 +12,7 @@ clean:
 	find . -type d -name "__pycache__" -delete
 
 build: clean
+	docker pull python:3.6.3-alpine3.6
 	docker build -t xsteadfastx/mossbot .
 
 run:
