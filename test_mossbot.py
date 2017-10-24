@@ -418,9 +418,18 @@ def test_on_message_html(moss_mock, store_msg_mock, matrix_handler):
     store_msg_mock.assert_called_with(event)
 
 
+@mock.patch('mossbot.logger')
+@mock.patch('mossbot.MatrixHandler.write_media')
 @mock.patch('mossbot.MatrixHandler.store_msg')
 @mock.patch('mossbot.MOSS', autospec=True)
-def test_on_message_skip(moss_mock, store_msg_mock, matrix_handler, room):
+def test_on_message_skip(
+        moss_mock,
+        store_msg_mock,
+        write_media_mock,
+        logger_mock,
+        matrix_handler,
+        room
+):
     event = {
         'content': {
             'msgtype': 'm.text',
@@ -440,7 +449,12 @@ def test_on_message_skip(moss_mock, store_msg_mock, matrix_handler, room):
 
     room.assert_not_called()
 
+    write_media_mock.assert_not_called()
+
     store_msg_mock.assert_called_with(event)
+
+    # logger_mock.info.assert_called_with('skipping msg...')
+    print(logger_mock.info.call_args_list)
 
 
 @pytest.mark.parametrize('image_data', [

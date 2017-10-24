@@ -412,25 +412,29 @@ class MatrixHandler(object):
             if msg and msg.data:
 
                 if msg.type == 'text':
+                    logger.info('sending text msg...')
                     room.send_text(msg.data)
 
                 elif msg.type == 'notice':
+                    logger.info('sending notice msg...')
                     room.send_notice(msg.data)
 
                 elif msg.type == 'html':
+                    logger.info('sending html msg...')
                     room.send_html(msg.data)
 
                 elif msg.type == 'image':
+                    logger.info('sending image msg...')
                     self.write_media('image', room, msg.data)
-
-                elif msg.type == 'skip':
-                    pass
 
                 else:
                     logger.error(
                         'could not recognize msg type "%s"',
                         msg[0]
                     )
+
+            elif msg and msg.type == 'skip':
+                logger.info('skipping msg...')
 
             else:
                 logger.debug('no matching in event')
